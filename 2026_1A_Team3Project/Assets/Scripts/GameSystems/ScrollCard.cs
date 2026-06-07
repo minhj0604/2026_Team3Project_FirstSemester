@@ -13,6 +13,7 @@ namespace Team3Project.GameSystems
         public string DisplayName;
 
         public bool TargetsEnemy => EffectType is ScrollEffectType.Attack or ScrollEffectType.Debuff;
+        public bool IsEmpty => string.IsNullOrEmpty(DisplayName) || DisplayName == "Empty Scroll";
 
         public static ScrollCard Craft(MergeResource baseResource, MergeResource? toppingResource)
         {
@@ -34,7 +35,7 @@ namespace Team3Project.GameSystems
                 _ => ElementType.None
             };
 
-            var stage = Math.Max(1, baseResource.Stage);
+            var stage = Math.Max(1, baseResource.Stage + 1);
             var power = effect switch
             {
                 ScrollEffectType.Attack => 6 + stage * 5,

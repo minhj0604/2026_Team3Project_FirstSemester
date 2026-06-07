@@ -349,7 +349,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: ">"
+  m_Text: "Boss\nLOCKED"
 --- !u!222 &405648442
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -447,7 +447,7 @@ GameObject:
   - component: {fileID: 741414797}
   - component: {fileID: 741414796}
   m_Layer: 0
-  m_Name: Previous Chapter Arrow
+  m_Name: Stage 2 Node
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -470,8 +470,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -690, y: 0}
-  m_SizeDelta: {x: 120, y: 120}
+  m_AnchoredPosition: {x: 0, y: -40}
+  m_SizeDelta: {x: 260, y: 120}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &741414796
 MonoBehaviour:
@@ -485,9 +485,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3050f058d2e85a9448e689befa08e8b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Team3Project.UI.SceneButton
-  action: 2
-  sceneName: 
-  scenePath: 
+  action: 0
+  sceneName: BattleScene
+  scenePath: Assets/Scenes/BattleScene.unity
 --- !u!114 &741414797
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -640,7 +640,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Chapter 1
+  m_Text: Chapter 1 Stage Map
 --- !u!222 &956701814
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -773,7 +773,7 @@ GameObject:
   - component: {fileID: 1320137492}
   - component: {fileID: 1320137491}
   m_Layer: 0
-  m_Name: Next Chapter Arrow
+  m_Name: Boss Stage Node
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -796,8 +796,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 690, y: 0}
-  m_SizeDelta: {x: 120, y: 120}
+  m_AnchoredPosition: {x: 420, y: -40}
+  m_SizeDelta: {x: 260, y: 120}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1320137491
 MonoBehaviour:
@@ -966,7 +966,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Enter Chapter
+  m_Text: "Stage 1\nCLEAR"
 --- !u!222 &1506312762
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1124,7 +1124,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "<"
+  m_Text: "Stage 2\nNOW"
 --- !u!222 &1538327814
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1186,8 +1186,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Team3Project.UI.SceneButton
   action: 0
-  sceneName: TitleScene
-  scenePath: Assets/Scenes/TitleScene.unity
+  sceneName: ChapterSelectScene
+  scenePath: Assets/Scenes/ChapterSelectScene.unity
 --- !u!114 &1746389110
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1282,7 +1282,7 @@ GameObject:
   - component: {fileID: 1749280404}
   - component: {fileID: 1749280403}
   m_Layer: 0
-  m_Name: Chapter Lock Hidden 1
+  m_Name: Chapter 2 Lock
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1359,7 +1359,7 @@ GameObject:
   - component: {fileID: 1783403815}
   - component: {fileID: 1783403814}
   m_Layer: 0
-  m_Name: Enter Chapter Button
+  m_Name: Stage 1 Node
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1382,8 +1382,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -300}
-  m_SizeDelta: {x: 430, y: 120}
+  m_AnchoredPosition: {x: -420, y: -40}
+  m_SizeDelta: {x: 260, y: 120}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1783403814
 MonoBehaviour:
@@ -1397,9 +1397,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3050f058d2e85a9448e689befa08e8b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Team3Project.UI.SceneButton
-  action: 0
-  sceneName: StageMapScene
-  scenePath: Assets/Scenes/StageMapScene.unity
+  action: 2
+  sceneName: 
+  scenePath: 
 --- !u!114 &1783403815
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1494,7 +1494,7 @@ GameObject:
   - component: {fileID: 1953250534}
   - component: {fileID: 1953250533}
   m_Layer: 0
-  m_Name: Chapter Lock Hidden 2
+  m_Name: Chapter 3 Lock
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

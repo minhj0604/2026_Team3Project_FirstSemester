@@ -36,6 +36,11 @@ namespace Team3Project.UI
 
         private void Update()
         {
+            if (GetComponent<DirectButtonClicker>() != null)
+            {
+                return;
+            }
+
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame)
             {
                 return;
