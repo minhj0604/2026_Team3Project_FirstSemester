@@ -21,8 +21,10 @@ namespace Team3Project.UI
         [SerializeField] private Button endTurnButton;
 
         private readonly Dictionary<ResourceFamily, Sprite> resourceSprites = new();
-        private DragMergeItem[] resourceItems = new DragMergeItem[0];
+        private readonly List<DragMergeItem> resourceSlots = new();
+        private DragMergeItem resourceTemplate;
         private DragScrollItem[] scrollItems = new DragScrollItem[0];
+        private RectTransform resourceStorage;
 
         private void Awake()
         {
@@ -43,6 +45,7 @@ namespace Team3Project.UI
             craftButton?.onClick.AddListener(() => battle.CraftFirstAvailableScroll());
             playButton?.onClick.AddListener(battle.PlayFirstScroll);
             endTurnButton?.onClick.AddListener(battle.EndTurn);
+            resourceStorage = FindRectTransform("Resource Storage");
             CacheResourceItems();
             CacheScrollItems();
         }
@@ -73,49 +76,109 @@ namespace Team3Project.UI
 
             SetText(playerText, $"{battle.Player.Name}\nHP {battle.Player.Hp}/{battle.Player.MaxHp}  Guard {battle.Player.Guard}\nStrength {battle.Player.Strength}");
             SetText(enemyText, $"{battle.Enemy.Name}\nHP {battle.Enemy.Hp}/{battle.Enemy.MaxHp}\nWeak {battle.Enemy.Weakness}  Shield {battle.Enemy.WeaknessHitsRemaining}/{battle.Enemy.WeaknessHitsRequired}");
-            SetText(costText, $"Cost {battle.CurrentCost}/{battle.MaxCost * 2}");
-            SetText(handText, $"Hand {battle.Hand.Count}");
-            SetText(resourceText, $"Resources {battle.Resources.Count}");
+            SetText(costText, $"Cost {battle.CurrentCost}/{battle.CostCap}");
+            SetText(handText, $"Hand {battle.VisibleHandCount}");
+            SetText(resourceText, $"Resources {battle.ActiveResourceCount}/{battle.MaxResources}");
             SetText(logText, battle.LastLog);
+            SetButtonText(endTurnButton, battle.Phase == BattlePhase.StageClear ? "Next Stage" : "End Turn");
             RefreshResourceItems();
             RefreshScrollItems();
         }
 
         private void CacheResourceItems()
         {
-            resourceItems = FindObjectsByType<DragMergeItem>(FindObjectsInactive.Include, FindObjectsSortMode.None)
-                .OrderBy(item => item.name)
+            var foundItems = FindObjectsByType<DragMergeItem>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .OrderBy(item => item.transform.GetSiblingIndex())
+                .ThenBy(item => item.name)
                 .ToArray();
 
-            foreach (var item in resourceItems)
+            foreach (var item in foundItems)
             {
                 if (item.TryGetComponent<Image>(out var image) && image.sprite != null && !resourceSprites.ContainsKey(item.Resource.Family))
                 {
                     resourceSprites.Add(item.Resource.Family, image.sprite);
                 }
             }
+
+            resourceTemplate = foundItems.FirstOrDefault();
+            foreach (var item in foundItems)
+            {
+                item.ClearInventorySlot();
+            }
+
+            EnsureResourceSlotCapacity(battle == null ? 56 : battle.MaxResources);
         }
 
         private void RefreshResourceItems()
         {
-            if (resourceItems.Length == 0)
+            if (resourceSlots.Count == 0)
             {
                 CacheResourceItems();
             }
 
-            for (var i = 0; i < resourceItems.Length; i++)
+            EnsureResourceSlotCapacity(battle.MaxResources);
+            var slotCount = Mathf.Min(battle.MaxResources, resourceSlots.Count);
+            for (var i = 0; i < slotCount; i++)
             {
-                var item = resourceItems[i];
-                if (item == null || item.IsDragging || item.IsPlacedInOven)
+                var item = resourceSlots[i];
+                if (item == null)
                 {
                     continue;
                 }
 
-                var hasResource = i < battle.Resources.Count;
-                var resource = hasResource ? battle.Resources[i] : default;
+                var hasResource = i < battle.Resources.Count && battle.Resources[i].CanUse;
+                var resource = hasResource ? battle.Resources[i] : MergeResource.Empty;
                 resourceSprites.TryGetValue(resource.Family, out var sprite);
+                if (resourceStorage != null)
+                {
+                    item.SetInventorySlot(resourceStorage, GetResourceSlotPosition(i));
+                }
+
                 item.SetInventoryState(resource, sprite, hasResource, i);
             }
+
+            for (var i = slotCount; i < resourceSlots.Count; i++)
+            {
+                resourceSlots[i]?.ClearInventorySlot();
+            }
+        }
+
+        private void EnsureResourceSlotCapacity(int requiredCount)
+        {
+            if (resourceTemplate == null || requiredCount <= resourceSlots.Count)
+            {
+                return;
+            }
+
+            var parent = resourceStorage == null ? resourceTemplate.transform.parent : resourceStorage;
+            for (var i = resourceSlots.Count; i < requiredCount; i++)
+            {
+                var clone = Instantiate(resourceTemplate, parent);
+                clone.name = $"Resource Slot {i + 1:00}";
+                if (clone.TryGetComponent<RectTransform>(out var rect))
+                {
+                    rect.anchoredPosition = GetResourceSlotPosition(i);
+                }
+
+                clone.gameObject.SetActive(false);
+                resourceSlots.Add(clone);
+            }
+        }
+
+        private Vector2 GetResourceSlotPosition(int index)
+        {
+            const int columns = 8;
+            const float cellWidth = 54f;
+            const float cellHeight = 58f;
+            var column = index % columns;
+            var row = index / columns;
+            if (resourceStorage == null)
+            {
+                return new Vector2(column * cellWidth, -row * cellHeight);
+            }
+
+            var rect = resourceStorage.rect;
+            return new Vector2((-rect.width * 0.5f) + 30f + column * cellWidth, (rect.height * 0.5f) - 38f - row * cellHeight);
         }
 
         private void CacheScrollItems()
@@ -140,7 +203,7 @@ namespace Team3Project.UI
                     continue;
                 }
 
-                var hasCard = i < battle.Hand.Count;
+                var hasCard = i < battle.Hand.Count && battle.Hand[i] != null;
                 item.SetHandState(hasCard, i, hasCard ? battle.Hand[i] : null);
             }
         }
@@ -157,8 +220,23 @@ namespace Team3Project.UI
             return target == null ? null : target.GetComponent<Button>();
         }
 
+        private static RectTransform FindRectTransform(string objectName)
+        {
+            var target = GameObject.Find(objectName);
+            return target == null ? null : target.GetComponent<RectTransform>();
+        }
+
         private static void SetText(Text text, string value)
         {
+            if (text != null)
+            {
+                text.text = value;
+            }
+        }
+
+        private static void SetButtonText(Button button, string value)
+        {
+            var text = button == null ? null : button.GetComponentInChildren<Text>();
             if (text != null)
             {
                 text.text = value;

@@ -1,17 +1,27 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Team3Project.GameSystems
 {
     public class BattleController : MonoBehaviour
     {
+        private const int FinalStageIndex = 3;
+        private const string SelectedChapterKey = "Team3.SelectedChapter";
+        private const string SelectedStageKey = "Team3.SelectedStage";
+        private const string ClearedStageKeyPrefix = "Team3.ClearedStage.";
+        private const string UnlockedChapterKey = "Team3.UnlockedChapter";
+
         [Header("Stage")]
         [SerializeField] private int chapterIndex = 1;
         [SerializeField] private int stageIndex = 1;
         [SerializeField] private int baseMaxCost = 4;
+        [SerializeField] private int maxCostCap = 10;
         [SerializeField] private int cardsDrawnPerTurn = 3;
-        [SerializeField] private int resourcesPerTurn = 4;
+        [SerializeField] private int resourcesPerTurn = 10;
+        [SerializeField] private int maxResources = 56;
+        [SerializeField] private int startingEmptyScrollCount = 18;
 
         public event Action StateChanged;
 
@@ -25,15 +35,33 @@ namespace Team3Project.GameSystems
         public int ChapterIndex => chapterIndex;
         public int StageIndex => stageIndex;
         public int MaxCost { get; private set; }
+        public int CostCap => maxCostCap;
         public int CurrentCost { get; private set; }
+        public int MaxResources => ResourceLimit;
+        public int ActiveResourceCount => Resources.FindAll(resource => resource.CanUse).Count;
+        public int VisibleHandCount => Hand.FindAll(card => card != null).Count;
         public string LastLog { get; private set; } = "Ready.";
 
         private readonly Queue<ScrollCard> drawDeck = new();
         private static readonly Dictionary<int, List<ScrollCard>> ChapterDrawDecks = new();
         private static readonly Dictionary<int, List<ScrollCard>> ChapterDiscardDecks = new();
+        private int ResourceLimit => maxResources > 0 ? maxResources : 56;
+
+        public static void ResetChapterRun(int chapter)
+        {
+            ChapterDrawDecks.Remove(chapter);
+            ChapterDiscardDecks.Remove(chapter);
+            PlayerPrefs.SetInt($"{ClearedStageKeyPrefix}{chapter}", 0);
+            PlayerPrefs.SetInt(SelectedChapterKey, chapter);
+            PlayerPrefs.SetInt(SelectedStageKey, 1);
+            PlayerPrefs.Save();
+        }
 
         private void Awake()
         {
+            chapterIndex = PlayerPrefs.GetInt(SelectedChapterKey, chapterIndex);
+            stageIndex = Mathf.Clamp(PlayerPrefs.GetInt(SelectedStageKey, stageIndex), 1, FinalStageIndex);
+
             if (Player.MaxHp <= 0)
             {
                 Player.Reset("Player", 50, ElementType.None, 0);
@@ -48,7 +76,7 @@ namespace Team3Project.GameSystems
         public void StartStage()
         {
             MaxCost = baseMaxCost + Mathf.Max(0, stageIndex - 1);
-            CurrentCost = MaxCost;
+            CurrentCost = 0;
             Player.Reset("Macaroon", 50, ElementType.None, 0);
             Enemy.Reset(stageIndex % 3 == 0 ? "Boss DuCookie" : "DuCookie", stageIndex % 3 == 0 ? 70 : 45, ElementType.Berry, stageIndex % 3 == 0 ? 3 : 0);
             Hand.Clear();
@@ -61,7 +89,7 @@ namespace Team3Project.GameSystems
         {
             Phase = BattlePhase.PlayerTurn;
             Player.Guard = 0;
-            CurrentCost = Mathf.Min(CurrentCost + MaxCost, MaxCost * 2);
+            CurrentCost = Mathf.Min(CurrentCost + MaxCost, maxCostCap);
             DrawEmptyScrolls(cardsDrawnPerTurn);
             AddTurnResources();
             LastLog = "Player turn. Craft scrolls, then use them.";
@@ -70,22 +98,21 @@ namespace Team3Project.GameSystems
 
         public bool MergeFirstPair(ResourceFamily family)
         {
-            var first = Resources.FindIndex(item => item.Family == family);
+            var first = Resources.FindIndex(item => item.CanUse && item.Family == family);
             if (first < 0)
             {
                 return false;
             }
 
             var stage = Resources[first].Stage;
-            var second = Resources.FindIndex(first + 1, item => item.Family == family && item.Stage == stage);
+            var second = Resources.FindIndex(first + 1, item => item.CanUse && item.Family == family && item.Stage == stage);
             if (second < 0 || stage >= 3)
             {
                 return false;
             }
 
-            Resources.RemoveAt(second);
-            Resources.RemoveAt(first);
-            Resources.Add(new MergeResource(family, stage + 1));
+            Resources[first] = new MergeResource(family, stage + 1);
+            Resources[second] = MergeResource.Empty;
             LastLog = $"Merged {family} to Lv.{stage + 2}.";
             NotifyChanged();
             return true;
@@ -100,21 +127,20 @@ namespace Team3Project.GameSystems
                 return false;
             }
 
-            var firstIndex = Resources.FindIndex(item => item.Family == firstResource.Family && item.Stage == firstResource.Stage);
+            var firstIndex = Resources.FindIndex(item => item.CanUse && item.Family == firstResource.Family && item.Stage == firstResource.Stage);
             if (firstIndex < 0)
             {
                 return false;
             }
 
-            var secondIndex = Resources.FindIndex(firstIndex + 1, item => item.Family == secondResource.Family && item.Stage == secondResource.Stage);
+            var secondIndex = Resources.FindIndex(firstIndex + 1, item => item.CanUse && item.Family == secondResource.Family && item.Stage == secondResource.Stage);
             if (secondIndex < 0)
             {
                 return false;
             }
 
-            Resources.RemoveAt(secondIndex);
-            Resources.RemoveAt(firstIndex);
-            Resources.Add(new MergeResource(firstResource.Family, firstResource.Stage + 1));
+            Resources[firstIndex] = new MergeResource(firstResource.Family, firstResource.Stage + 1);
+            Resources[secondIndex] = MergeResource.Empty;
             LastLog = $"Merged {firstResource.Family} to Lv.{firstResource.Stage + 2}.";
             SaveChapterDeckState();
             NotifyChanged();
@@ -130,16 +156,16 @@ namespace Team3Project.GameSystems
 
             var firstResource = Resources[firstIndex];
             var secondResource = Resources[secondIndex];
-            if (firstResource.Family != secondResource.Family || firstResource.Stage != secondResource.Stage || firstResource.Stage >= 3)
+            if (!firstResource.CanUse || !secondResource.CanUse || firstResource.Family != secondResource.Family || firstResource.Stage != secondResource.Stage || firstResource.Stage >= 3)
             {
                 LastLog = "Only matching resources can merge.";
                 NotifyChanged();
                 return false;
             }
 
-            Resources.RemoveAt(Mathf.Max(firstIndex, secondIndex));
-            Resources.RemoveAt(Mathf.Min(firstIndex, secondIndex));
-            Resources.Add(new MergeResource(firstResource.Family, firstResource.Stage + 1));
+            var resultResource = new MergeResource(firstResource.Family, firstResource.Stage + 1);
+            Resources[secondIndex] = resultResource;
+            Resources[firstIndex] = MergeResource.Empty;
             LastLog = $"Merged {firstResource.Family} to Lv.{firstResource.Stage + 2}.";
             NotifyChanged();
             return true;
@@ -147,13 +173,13 @@ namespace Team3Project.GameSystems
 
         public bool TryConsumeResource(MergeResource resource)
         {
-            var index = Resources.FindIndex(item => item.Family == resource.Family && item.Stage == resource.Stage);
+            var index = Resources.FindIndex(item => item.CanUse && item.Family == resource.Family && item.Stage == resource.Stage);
             if (index < 0)
             {
                 return false;
             }
 
-            Resources.RemoveAt(index);
+            Resources[index] = MergeResource.Empty;
             NotifyChanged();
             return true;
         }
@@ -163,7 +189,7 @@ namespace Team3Project.GameSystems
             var sortedIndices = new List<int>();
             foreach (var index in resourceIndices)
             {
-                if (index < 0 || index >= Resources.Count || sortedIndices.Contains(index))
+                if (index < 0 || index >= Resources.Count || sortedIndices.Contains(index) || !Resources[index].CanUse)
                 {
                     continue;
                 }
@@ -176,11 +202,9 @@ namespace Team3Project.GameSystems
                 return false;
             }
 
-            sortedIndices.Sort();
-            sortedIndices.Reverse();
             foreach (var index in sortedIndices)
             {
-                Resources.RemoveAt(index);
+                Resources[index] = MergeResource.Empty;
             }
 
             SaveChapterDeckState();
@@ -190,34 +214,36 @@ namespace Team3Project.GameSystems
 
         public bool CraftFirstAvailableScroll()
         {
-            if (Hand.Count == 0)
+            var handIndex = Hand.FindIndex(card => card != null && card.IsEmpty);
+            if (handIndex < 0)
             {
                 LastLog = "No empty scroll in hand.";
                 NotifyChanged();
                 return false;
             }
 
-            var baseIndex = Resources.FindIndex(resource => resource.Role == ResourceRole.Base && resource.Stage > 0);
+            var baseIndex = Resources.FindIndex(resource => resource.CanUse && resource.Role == ResourceRole.Base && resource.Stage > 0);
             if (baseIndex < 0)
             {
-                LastLog = "Need a stage 1+ base resource first.";
+                LastLog = "Need a stage 1+ base resource.";
+                NotifyChanged();
+                return false;
+            }
+
+            var toppingIndex = Resources.FindIndex(resource => resource.CanUse && resource.Role == ResourceRole.Topping && resource.Stage > 0);
+            if (toppingIndex < 0)
+            {
+                LastLog = "Need a stage 1+ topping resource.";
                 NotifyChanged();
                 return false;
             }
 
             var baseResource = Resources[baseIndex];
-            Resources.RemoveAt(baseIndex);
-
-            MergeResource? toppingResource = null;
-            var toppingIndex = Resources.FindIndex(resource => resource.Role == ResourceRole.Topping && resource.Stage > 0);
-            if (toppingIndex >= 0)
-            {
-                toppingResource = Resources[toppingIndex];
-                Resources.RemoveAt(toppingIndex);
-            }
-
-            Hand[0] = ScrollCard.Craft(baseResource, toppingResource);
-            LastLog = $"Crafted {Hand[0].DisplayName}.";
+            var toppingResource = Resources[toppingIndex];
+            Resources[baseIndex] = MergeResource.Empty;
+            Resources[toppingIndex] = MergeResource.Empty;
+            Hand[handIndex] = ScrollCard.Craft(baseResource, toppingResource, Hand[handIndex].Id);
+            LastLog = $"Crafted {Hand[handIndex].DisplayName}.";
             SaveChapterDeckState();
             NotifyChanged();
             return true;
@@ -226,35 +252,58 @@ namespace Team3Project.GameSystems
         public bool TryCraftHandScroll(int handIndex, MergeResource baseResource, MergeResource? toppingResource, int baseResourceIndex, int toppingResourceIndex, out ScrollCard craftedCard)
         {
             craftedCard = null;
-            if (handIndex < 0 || handIndex >= Hand.Count || !Hand[handIndex].IsEmpty)
+            if (handIndex < 0 || handIndex >= Hand.Count || Hand[handIndex] == null || !Hand[handIndex].IsEmpty)
             {
                 LastLog = "Need an empty scroll.";
                 NotifyChanged();
                 return false;
             }
 
-            if (toppingResource.HasValue)
+            if (baseResource.Stage <= 0)
             {
-                if (!TryConsumeResourceSlots(baseResourceIndex, toppingResourceIndex))
-                {
-                    LastLog = "Cannot use selected resources.";
-                    NotifyChanged();
-                    return false;
-                }
-            }
-            else if (!TryConsumeResourceSlots(baseResourceIndex))
-            {
-                LastLog = "Cannot use selected base resource.";
+                LastLog = "Base resource must be stage 1+.";
                 NotifyChanged();
                 return false;
             }
 
-            craftedCard = ScrollCard.Craft(baseResource, toppingResource);
+            if (!toppingResource.HasValue || toppingResource.Value.Stage <= 0)
+            {
+                LastLog = "Topping resource must be stage 1+.";
+                NotifyChanged();
+                return false;
+            }
+
+            if (!ResourceSlotMatches(baseResourceIndex, baseResource) || !ResourceSlotMatches(toppingResourceIndex, toppingResource.Value))
+            {
+                LastLog = "Selected resource changed.";
+                NotifyChanged();
+                return false;
+            }
+
+            if (!TryConsumeResourceSlots(baseResourceIndex, toppingResourceIndex))
+            {
+                LastLog = "Cannot use selected resources.";
+                NotifyChanged();
+                return false;
+            }
+
+            craftedCard = ScrollCard.Craft(baseResource, toppingResource, Hand[handIndex].Id);
             Hand[handIndex] = craftedCard;
             LastLog = $"Crafted {craftedCard.DisplayName}.";
             SaveChapterDeckState();
             NotifyChanged();
             return true;
+        }
+
+        private bool ResourceSlotMatches(int index, MergeResource resource)
+        {
+            if (index < 0 || index >= Resources.Count)
+            {
+                return false;
+            }
+
+            var current = Resources[index];
+            return current.CanUse && current.Family == resource.Family && current.Stage == resource.Stage;
         }
 
         public bool TryPlayHandCard(int handIndex)
@@ -269,7 +318,7 @@ namespace Team3Project.GameSystems
 
         public bool TryPlayCard(ScrollCard card)
         {
-            var handIndex = Hand.FindIndex(item => ReferenceEquals(item, card) || SameCard(item, card));
+            var handIndex = Hand.FindIndex(item => item != null && card != null && item.Id == card.Id);
             if (handIndex < 0)
             {
                 LastLog = "Card is not in hand.";
@@ -288,6 +337,11 @@ namespace Team3Project.GameSystems
             }
 
             var card = Hand[handIndex];
+            if (card == null)
+            {
+                return false;
+            }
+
             if (card.IsEmpty)
             {
                 LastLog = "Empty scroll has no effect.";
@@ -305,7 +359,7 @@ namespace Team3Project.GameSystems
             CurrentCost -= card.Cost;
             ResolveCard(card);
             DiscardPile.Add(card);
-            Hand.RemoveAt(handIndex);
+            Hand[handIndex] = null;
             SaveChapterDeckState();
             NotifyChanged();
             return true;
@@ -318,7 +372,15 @@ namespace Team3Project.GameSystems
                 return;
             }
 
-            var card = Hand[0];
+            var handIndex = Hand.FindIndex(card => card != null && !card.IsEmpty);
+            if (handIndex < 0)
+            {
+                LastLog = "No crafted scroll in hand.";
+                NotifyChanged();
+                return;
+            }
+
+            var card = Hand[handIndex];
             if (CurrentCost < card.Cost)
             {
                 LastLog = "Not enough cost.";
@@ -329,23 +391,62 @@ namespace Team3Project.GameSystems
             CurrentCost -= card.Cost;
             ResolveCard(card);
             DiscardPile.Add(card);
-            Hand.RemoveAt(0);
+            Hand[handIndex] = null;
             SaveChapterDeckState();
             NotifyChanged();
         }
 
         public void EndTurn()
         {
+            if (Phase == BattlePhase.StageClear)
+            {
+                ContinueAfterStageClear();
+                return;
+            }
+
             if (Phase != BattlePhase.PlayerTurn)
             {
                 return;
             }
 
-            DiscardPile.AddRange(Hand);
+            foreach (var card in Hand)
+            {
+                if (card != null)
+                {
+                    DiscardPile.Add(card);
+                }
+            }
+
             Hand.Clear();
             SaveChapterDeckState();
             Phase = BattlePhase.EnemyTurn;
             ResolveEnemyTurn();
+        }
+
+        public void ContinueAfterStageClear()
+        {
+            if (Phase != BattlePhase.StageClear)
+            {
+                return;
+            }
+
+            MarkStageCleared();
+            if (stageIndex >= FinalStageIndex)
+            {
+                LastLog = "Chapter clear!";
+                SaveChapterDeckState();
+                PlayerPrefs.SetInt(UnlockedChapterKey, Mathf.Max(PlayerPrefs.GetInt(UnlockedChapterKey, 1), chapterIndex + 1));
+                PlayerPrefs.SetInt(SelectedStageKey, 1);
+                PlayerPrefs.Save();
+                SceneManager.LoadScene("StageMapScene");
+                return;
+            }
+
+            stageIndex++;
+            PlayerPrefs.SetInt(SelectedChapterKey, chapterIndex);
+            PlayerPrefs.SetInt(SelectedStageKey, stageIndex);
+            PlayerPrefs.Save();
+            StartStage();
         }
 
         private void ResolveCard(ScrollCard card)
@@ -386,7 +487,18 @@ namespace Team3Project.GameSystems
             {
                 Phase = BattlePhase.StageClear;
                 LastLog = "Stage clear!";
+                MarkStageCleared();
             }
+        }
+
+        private void MarkStageCleared()
+        {
+            var key = $"{ClearedStageKeyPrefix}{chapterIndex}";
+            var clearedStage = Mathf.Max(PlayerPrefs.GetInt(key, 0), stageIndex);
+            PlayerPrefs.SetInt(key, clearedStage);
+            PlayerPrefs.SetInt(SelectedChapterKey, chapterIndex);
+            PlayerPrefs.SetInt(SelectedStageKey, Mathf.Clamp(stageIndex, 1, FinalStageIndex));
+            PlayerPrefs.Save();
         }
 
         private void BreakShieldOrReward(ElementType element)
@@ -401,8 +513,7 @@ namespace Team3Project.GameSystems
                 }
             }
 
-            AddResource(ResourceFamily.Berry, 0);
-            AddResource(ResourceFamily.Berry, 0);
+            // Breaking the enemy should not inject extra inventory resources.
         }
 
         private void ResolveEnemyTurn()
@@ -455,10 +566,10 @@ namespace Team3Project.GameSystems
             }
         }
 
-        private static List<ScrollCard> BuildEmptyScrollDeck()
+        private List<ScrollCard> BuildEmptyScrollDeck()
         {
             var deck = new List<ScrollCard>();
-            for (var i = 0; i < 7; i++)
+            for (var i = 0; i < startingEmptyScrollCount; i++)
             {
                 deck.Add(CreateEmptyScroll());
             }
@@ -468,7 +579,7 @@ namespace Team3Project.GameSystems
 
         private static ScrollCard CreateEmptyScroll()
         {
-            return new ScrollCard
+            var card = new ScrollCard
             {
                 EffectType = ScrollEffectType.Attack,
                 Element = ElementType.None,
@@ -476,12 +587,23 @@ namespace Team3Project.GameSystems
                 Cost = 0,
                 DisplayName = "Empty Scroll"
             };
+            card.Id = ScrollCard.CreateId();
+            return card;
         }
 
         private void SaveChapterDeckState()
         {
             ChapterDrawDecks[chapterIndex] = new List<ScrollCard>(CloneCards(drawDeck));
-            ChapterDiscardDecks[chapterIndex] = new List<ScrollCard>(CloneCards(DiscardPile));
+            var persistentDiscard = new List<ScrollCard>(CloneCards(DiscardPile));
+            foreach (var card in Hand)
+            {
+                if (card != null && !card.IsEmpty)
+                {
+                    persistentDiscard.Add(CloneCard(card));
+                }
+            }
+
+            ChapterDiscardDecks[chapterIndex] = persistentDiscard;
         }
 
         private IEnumerable<ScrollCard> CloneCards(IEnumerable<ScrollCard> cards)
@@ -501,22 +623,13 @@ namespace Team3Project.GameSystems
 
             return new ScrollCard
             {
+                Id = card.Id > 0 ? card.Id : ScrollCard.CreateId(),
                 EffectType = card.EffectType,
                 Element = card.Element,
                 Power = card.Power,
                 Cost = card.Cost,
                 DisplayName = card.DisplayName
             };
-        }
-
-        private static bool SameCard(ScrollCard first, ScrollCard second)
-        {
-            return first != null && second != null
-                && first.EffectType == second.EffectType
-                && first.Element == second.Element
-                && first.Power == second.Power
-                && first.Cost == second.Cost
-                && first.DisplayName == second.DisplayName;
         }
 
         private void BuildStarterDeck()
@@ -542,10 +655,22 @@ namespace Team3Project.GameSystems
                     break;
                 }
 
-                Hand.Add(drawDeck.Dequeue());
+                AddCardToHand(drawDeck.Dequeue());
             }
 
             SaveChapterDeckState();
+        }
+
+        private void AddCardToHand(ScrollCard card)
+        {
+            var emptySlot = Hand.FindIndex(item => item == null);
+            if (emptySlot >= 0)
+            {
+                Hand[emptySlot] = card;
+                return;
+            }
+
+            Hand.Add(card);
         }
 
         private void RefillDrawDeckFromDiscard()
@@ -566,27 +691,74 @@ namespace Team3Project.GameSystems
 
         private void AddTurnResources()
         {
-            AddResource(ResourceFamily.Sugar, 0);
-            AddResource(ResourceFamily.Sugar, 0);
-
-            var families = new[]
+            if (ActiveResourceCount >= ResourceLimit)
             {
+                LastLog = "Resource storage is full.";
+                return;
+            }
+
+            var nonSugarBaseFamilies = new[]
+            {
+                ResourceFamily.Dough,
+                ResourceFamily.Dairy,
+                ResourceFamily.Egg
+            };
+
+            var toppingFamilies = new[]
+            {
+                ResourceFamily.Berry,
+                ResourceFamily.Chocolate,
+                ResourceFamily.Marshmallow,
+                ResourceFamily.PoppingCandy
+            };
+
+            var guaranteedBase = nonSugarBaseFamilies[UnityEngine.Random.Range(0, nonSugarBaseFamilies.Length)];
+            var guaranteedTopping = toppingFamilies[UnityEngine.Random.Range(0, toppingFamilies.Length)];
+            AddResource(ResourceFamily.Sugar, 0);
+            AddResource(ResourceFamily.Sugar, 0);
+            AddResource(guaranteedBase, 0);
+            AddResource(guaranteedBase, 0);
+            AddResource(guaranteedTopping, 0);
+            AddResource(guaranteedTopping, 0);
+
+            var weightedFamilies = new[]
+            {
+                ResourceFamily.Sugar,
+                ResourceFamily.Sugar,
+                ResourceFamily.Sugar,
                 ResourceFamily.Dough,
                 ResourceFamily.Dairy,
                 ResourceFamily.Egg,
                 ResourceFamily.Berry,
-                ResourceFamily.Chocolate
+                ResourceFamily.Chocolate,
+                ResourceFamily.Marshmallow,
+                ResourceFamily.PoppingCandy
             };
 
-            for (var i = 2; i < resourcesPerTurn; i++)
+            for (var i = 6; i < resourcesPerTurn; i++)
             {
-                AddResource(families[UnityEngine.Random.Range(0, families.Length)], 0);
+                AddResource(weightedFamilies[UnityEngine.Random.Range(0, weightedFamilies.Length)], 0);
             }
         }
 
         private void AddResource(ResourceFamily family, int stage)
         {
-            Resources.Add(new MergeResource(family, stage));
+            if (ActiveResourceCount >= ResourceLimit)
+            {
+                return;
+            }
+
+            var emptySlot = Resources.FindIndex(resource => !resource.CanUse);
+            if (emptySlot >= 0)
+            {
+                Resources[emptySlot] = new MergeResource(family, stage);
+                return;
+            }
+
+            if (Resources.Count < ResourceLimit)
+            {
+                Resources.Add(new MergeResource(family, stage));
+            }
         }
 
         private void NotifyChanged()

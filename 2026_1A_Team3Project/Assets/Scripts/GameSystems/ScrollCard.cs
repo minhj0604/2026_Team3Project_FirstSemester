@@ -6,6 +6,9 @@ namespace Team3Project.GameSystems
     [Serializable]
     public class ScrollCard
     {
+        private static int nextId = 1;
+
+        public int Id;
         public ScrollEffectType EffectType;
         public ElementType Element;
         public int Power;
@@ -15,7 +18,12 @@ namespace Team3Project.GameSystems
         public bool TargetsEnemy => EffectType is ScrollEffectType.Attack or ScrollEffectType.Debuff;
         public bool IsEmpty => string.IsNullOrEmpty(DisplayName) || DisplayName == "Empty Scroll";
 
-        public static ScrollCard Craft(MergeResource baseResource, MergeResource? toppingResource)
+        public static int CreateId()
+        {
+            return nextId++;
+        }
+
+        public static ScrollCard Craft(MergeResource baseResource, MergeResource? toppingResource, int sourceScrollId = 0)
         {
             var effect = baseResource.Family switch
             {
@@ -35,7 +43,7 @@ namespace Team3Project.GameSystems
                 _ => ElementType.None
             };
 
-            var stage = Math.Max(1, baseResource.Stage + 1);
+            var stage = Math.Max(1, baseResource.Stage);
             var power = effect switch
             {
                 ScrollEffectType.Attack => 6 + stage * 5,
@@ -52,6 +60,7 @@ namespace Team3Project.GameSystems
 
             return new ScrollCard
             {
+                Id = sourceScrollId > 0 ? sourceScrollId : CreateId(),
                 EffectType = effect,
                 Element = element,
                 Power = power,
@@ -63,7 +72,7 @@ namespace Team3Project.GameSystems
         private static string BuildName(ScrollEffectType effect, ElementType element, int stage)
         {
             var prefix = element == ElementType.None ? string.Empty : $"{element} ";
-            return $"{prefix}{effect} Lv.{stage}";
+            return $"{prefix}{effect} Stage {stage}";
         }
     }
 }

@@ -60,6 +60,12 @@ namespace Team3Project.UI
             }
 
             var resource = item.Resource;
+            if (resource.Stage <= 0)
+            {
+                SetResult("Stage 0 resources must be merged first");
+                return false;
+            }
+
             if (resource.Role == ResourceRole.Base)
             {
                 if (directBaseItem != null && directBaseItem != item)
@@ -128,20 +134,36 @@ namespace Team3Project.UI
                 return;
             }
 
-            var card = ScrollCard.Craft(baseSlot.CurrentResource.Value, toppingSlot == null ? null : toppingSlot.CurrentResource);
-            if (scrollSlot != null && scrollSlot.PlacedScrollItem != null)
+            var scrollItem = scrollSlot == null ? null : scrollSlot.PlacedScrollItem;
+            var battle = FindFirstObjectByType<BattleController>();
+            if (battle == null || scrollItem == null || !battle.TryCraftHandScroll(
+                    scrollItem.HandIndex,
+                    baseSlot.CurrentResource.Value,
+                    toppingSlot == null ? null : toppingSlot.CurrentResource,
+                    baseSlot.PlacedResourceItem == null ? -1 : baseSlot.PlacedResourceItem.InventoryIndex,
+                    toppingSlot == null || toppingSlot.PlacedResourceItem == null ? -1 : toppingSlot.PlacedResourceItem.InventoryIndex,
+                    out var card))
             {
-                scrollSlot.PlacedScrollItem.SetCraftedCard(card);
+                if (craftedScrollText != null)
+                {
+                    craftedScrollText.text = "Cannot craft scroll";
+                }
+
+                baseSlot.ReturnPlacedObject();
+                toppingSlot?.ReturnPlacedObject();
+                scrollSlot?.ReturnPlacedObject();
+                return;
             }
 
+            scrollItem.SetCraftedCard(card);
             if (craftedScrollText != null)
             {
                 craftedScrollText.text = $"{card.DisplayName}\nCost {card.Cost} / Power {card.Power}\nClick card to use";
             }
 
-            baseSlot.ReturnPlacedObject();
-            toppingSlot?.ReturnPlacedObject();
-            scrollSlot?.ReturnPlacedObject();
+            baseSlot.ConsumePlacedResource();
+            toppingSlot?.ConsumePlacedResource();
+            scrollSlot?.ReleasePlacedScroll();
         }
 
         private void TryAutoBake()
@@ -151,7 +173,7 @@ namespace Team3Project.UI
                 return;
             }
 
-            if (directBaseResource.HasValue && directScrollItem != null)
+            if (directBaseResource.HasValue && directToppingResource.HasValue && directScrollItem != null)
             {
                 BakeDirect();
             }
@@ -190,8 +212,8 @@ namespace Team3Project.UI
 
             directScrollItem.SetCraftedCard(card);
             directScrollItem.ReturnToOriginalSlot();
-            directBaseItem?.ReturnToStart();
-            directToppingItem?.ReturnToStart();
+            directBaseItem?.ConsumeFromOven();
+            directToppingItem?.ConsumeFromOven();
             SetResult($"{card.DisplayName}\nCost {card.Cost} / Power {card.Power}\nClick card to use");
 
             ClearDirectSlots();

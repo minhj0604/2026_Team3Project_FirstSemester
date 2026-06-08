@@ -485,9 +485,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3050f058d2e85a9448e689befa08e8b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Team3Project.UI.SceneButton
-  action: 0
-  sceneName: BattleScene
-  scenePath: Assets/Scenes/BattleScene.unity
+  action: 2
+  sceneName: 
+  scenePath: 
 --- !u!114 &741414797
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -966,7 +966,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "Stage 1\nCLEAR"
+  m_Text: "Stage 1\nNOW"
 --- !u!222 &1506312762
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1124,7 +1124,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "Stage 2\nNOW"
+  m_Text: "Stage 2\nLOCKED"
 --- !u!222 &1538327814
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1397,9 +1397,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3050f058d2e85a9448e689befa08e8b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Team3Project.UI.SceneButton
-  action: 2
-  sceneName: 
-  scenePath: 
+  action: 0
+  sceneName: BattleScene
+  scenePath: Assets/Scenes/BattleScene.unity
 --- !u!114 &1783403815
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -18,10 +18,12 @@ namespace Team3Project.UI
         private bool isDragging;
         private bool hasCraftedCard;
         private Text cardText;
+        private int boundCardId = -1;
 
         public bool IsEmptyScroll => !hasCraftedCard;
         public bool IsDragging => isDragging;
         public int HandIndex { get; private set; } = -1;
+        public int BoundCardId => boundCardId;
 
         private void Awake()
         {
@@ -190,6 +192,7 @@ namespace Team3Project.UI
         public void SetCraftedCard(ScrollCard card)
         {
             craftedCard = card;
+            boundCardId = card == null ? -1 : card.Id;
             hasCraftedCard = true;
             if (TryGetComponent<Image>(out var image))
             {
@@ -216,13 +219,16 @@ namespace Team3Project.UI
         private void TryPlayCraftedCard()
         {
             var battle = FindFirstObjectByType<BattleController>();
-            if (battle == null || !battle.TryPlayHandCard(HandIndex))
+            if (battle == null || !battle.TryPlayCard(craftedCard))
             {
                 ReturnToOriginalSlot();
                 return;
             }
 
             ReturnToOriginalSlot();
+            isDragging = false;
+            ResetToEmptyScroll();
+            gameObject.SetActive(false);
         }
 
         public void SetHandState(bool active, int handIndex, ScrollCard card)
@@ -249,6 +255,7 @@ namespace Team3Project.UI
         {
             hasCraftedCard = false;
             craftedCard = null;
+            boundCardId = -1;
             if (TryGetComponent<Image>(out var image))
             {
                 image.color = Color.white;

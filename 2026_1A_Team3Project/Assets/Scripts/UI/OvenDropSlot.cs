@@ -23,6 +23,7 @@ namespace Team3Project.UI
 
         public MergeResource? CurrentResource { get; private set; }
         public bool HasEmptyScroll { get; private set; }
+        public DragMergeItem PlacedResourceItem => placedResourceItem;
         public DragScrollItem PlacedScrollItem => placedScrollItem;
 
         public bool ContainsScreenPoint(Vector2 screenPosition)
@@ -68,6 +69,7 @@ namespace Team3Project.UI
             CurrentResource = resource;
             placedObject = item.gameObject;
             placedResourceItem = item;
+            item.MarkPlacedInOven();
             item.transform.SetParent(transform, false);
             if (item.TryGetComponent<RectTransform>(out var rect))
             {
@@ -101,6 +103,7 @@ namespace Team3Project.UI
             CurrentResource = resource;
             placedObject = item.gameObject;
             placedResourceItem = item;
+            item.MarkPlacedInOven();
             PlaceObject(item.transform);
             if (labelText != null)
             {
@@ -173,6 +176,18 @@ namespace Team3Project.UI
         public void ReturnPlacedObject()
         {
             placedResourceItem?.ReturnToStart();
+            placedScrollItem?.ReturnToOriginalSlot();
+            Clear();
+        }
+
+        public void ConsumePlacedResource()
+        {
+            placedResourceItem?.ConsumeFromOven();
+            Clear();
+        }
+
+        public void ReleasePlacedScroll()
+        {
             placedScrollItem?.ReturnToOriginalSlot();
             Clear();
         }

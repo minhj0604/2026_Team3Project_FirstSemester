@@ -1,12 +1,11 @@
 using Team3Project.GameSystems;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Team3Project.UI
 {
-    public class DragMergeItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    public class DragMergeItem : MonoBehaviour
     {
         [SerializeField] private ResourceFamily family;
         [SerializeField] private int stage;
@@ -89,21 +88,6 @@ namespace Team3Project.UI
             }
         }
 
-        public void OnBeginDrag(PointerEventData eventData)
-        {
-            BeginDrag();
-        }
-
-        public void OnDrag(PointerEventData eventData)
-        {
-            rectTransform.anchoredPosition += eventData.delta / Mathf.Max(1f, canvas.scaleFactor);
-        }
-
-        public void OnEndDrag(PointerEventData eventData)
-        {
-            EndDrag(eventData.position);
-        }
-
         private void BeginDrag()
         {
             if (isDragging)
@@ -168,8 +152,6 @@ namespace Team3Project.UI
                 var battle = Object.FindFirstObjectByType<BattleController>();
                 if (battle != null && battle.TryMergeResourceSlots(InventoryIndex, other.InventoryIndex))
                 {
-                    ReturnToStart();
-                    other.ReturnToStart();
                     return;
                 }
             }
@@ -205,9 +187,38 @@ namespace Team3Project.UI
             IsPlacedInOven = false;
         }
 
+        public void ConsumeFromOven()
+        {
+            IsPlacedInOven = false;
+            InventoryIndex = -1;
+            gameObject.SetActive(false);
+        }
+
+        public void ClearInventorySlot()
+        {
+            isDragging = false;
+            IsPlacedInOven = false;
+            InventoryIndex = -1;
+            gameObject.SetActive(false);
+        }
+
         public void MarkPlacedInOven()
         {
             IsPlacedInOven = true;
+        }
+
+        public void SetInventorySlot(Transform parent, Vector2 anchoredPosition)
+        {
+            if (rectTransform == null)
+            {
+                CacheComponents();
+            }
+
+            transform.SetParent(parent, false);
+            startParent = parent;
+            startPosition = anchoredPosition;
+            rectTransform.anchoredPosition = anchoredPosition;
+            IsPlacedInOven = false;
         }
 
         public void SetInventoryState(MergeResource resource, Sprite sprite, bool active, int inventoryIndex)
@@ -221,10 +232,10 @@ namespace Team3Project.UI
 
             Configure(resource.Family, resource.Stage);
             IsPlacedInOven = false;
-            if (TryGetComponent<Image>(out var image) && sprite != null)
+            if (TryGetComponent<Image>(out var image))
             {
                 image.sprite = sprite;
-                image.color = Color.white;
+                image.color = sprite == null ? GetFallbackColor(resource.Family) : Color.white;
             }
 
             if (startParent != null && rectTransform != null)
@@ -237,7 +248,7 @@ namespace Team3Project.UI
         {
             if (labelText != null)
             {
-                labelText.text = $"{family}\nLv.{stage + 1}";
+                labelText.text = $"{Resource.DisplayName}\nStage {stage}";
             }
         }
 
@@ -269,6 +280,22 @@ namespace Team3Project.UI
             labelText.resizeTextMaxSize = 12;
             labelText.color = Color.white;
             labelText.raycastTarget = false;
+        }
+
+        private static Color GetFallbackColor(ResourceFamily resourceFamily)
+        {
+            return resourceFamily switch
+            {
+                ResourceFamily.Sugar => new Color(0.95f, 0.9f, 0.62f, 1f),
+                ResourceFamily.Dough => new Color(0.78f, 0.58f, 0.36f, 1f),
+                ResourceFamily.Dairy => new Color(0.9f, 0.95f, 1f, 1f),
+                ResourceFamily.Egg => new Color(1f, 0.86f, 0.45f, 1f),
+                ResourceFamily.Berry => new Color(0.9f, 0.18f, 0.28f, 1f),
+                ResourceFamily.Chocolate => new Color(0.22f, 0.11f, 0.07f, 1f),
+                ResourceFamily.Marshmallow => new Color(0.96f, 0.96f, 0.9f, 1f),
+                ResourceFamily.PoppingCandy => new Color(0.4f, 0.9f, 1f, 1f),
+                _ => Color.gray
+            };
         }
     }
 }

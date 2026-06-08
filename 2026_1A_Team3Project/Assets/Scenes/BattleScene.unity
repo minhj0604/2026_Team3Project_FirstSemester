@@ -1863,7 +1863,7 @@ MonoBehaviour:
   stageIndex: 1
   baseMaxCost: 4
   cardsDrawnPerTurn: 3
-  resourcesPerTurn: 4
+  resourcesPerTurn: 10
 --- !u!4 &941344384
 Transform:
   m_ObjectHideFlags: 0

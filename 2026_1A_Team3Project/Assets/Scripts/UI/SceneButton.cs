@@ -13,6 +13,10 @@ namespace Team3Project.UI
     [RequireComponent(typeof(Button))]
     public class SceneButton : MonoBehaviour
     {
+        private const string SelectedChapterKey = "Team3.SelectedChapter";
+        private const string SelectedStageKey = "Team3.SelectedStage";
+        private const string ClearedStageKeyPrefix = "Team3.ClearedStage.";
+
         public enum ButtonAction
         {
             LoadScene,
@@ -26,6 +30,7 @@ namespace Team3Project.UI
 
         private Button button;
         private RectTransform rectTransform;
+        private int lastExecuteFrame = -1;
 
         private void Awake()
         {
@@ -34,13 +39,13 @@ namespace Team3Project.UI
             button.onClick.AddListener(Execute);
         }
 
+        private void Start()
+        {
+            RefreshNamedButtonState();
+        }
+
         private void Update()
         {
-            if (GetComponent<DirectButtonClicker>() != null)
-            {
-                return;
-            }
-
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame)
             {
                 return;
@@ -60,6 +65,17 @@ namespace Team3Project.UI
 
         private void Execute()
         {
+            if (lastExecuteFrame == Time.frameCount)
+            {
+                return;
+            }
+
+            lastExecuteFrame = Time.frameCount;
+            if (TryExecuteNamedButton())
+            {
+                return;
+            }
+
             switch (action)
             {
                 case ButtonAction.LoadScene:
@@ -69,6 +85,99 @@ namespace Team3Project.UI
                     Application.Quit();
                     break;
             }
+        }
+
+        private bool TryExecuteNamedButton()
+        {
+            var activeScene = SceneManager.GetActiveScene().name;
+            if (activeScene == "ChapterSelectScene")
+            {
+                if (name == "Previous Chapter Arrow")
+                {
+                    SceneFlowBootstrap.ChangeChapter(-1);
+                    return true;
+                }
+
+                if (name == "Next Chapter Arrow")
+                {
+                    SceneFlowBootstrap.ChangeChapter(1);
+                    return true;
+                }
+
+                if (name == "Enter Chapter Button")
+                {
+                    SceneFlowBootstrap.EnterSelectedChapter();
+                    return true;
+                }
+            }
+
+            if (activeScene == "StageMapScene" && TryGetStageFromName(name, out var stage))
+            {
+                var chapter = PlayerPrefs.GetInt(SelectedChapterKey, 1);
+                var unlockedStage = GetCurrentStageForChapter(chapter);
+                if (stage > unlockedStage)
+                {
+                    return true;
+                }
+
+                PlayerPrefs.SetInt(SelectedChapterKey, chapter);
+                PlayerPrefs.SetInt(SelectedStageKey, stage);
+                PlayerPrefs.Save();
+                SceneManager.LoadScene("BattleScene");
+                return true;
+            }
+
+            return false;
+        }
+
+        private void RefreshNamedButtonState()
+        {
+            if (button == null || SceneManager.GetActiveScene().name != "StageMapScene" || !TryGetStageFromName(name, out var stage))
+            {
+                return;
+            }
+
+            var chapter = PlayerPrefs.GetInt(SelectedChapterKey, 1);
+            var clearedStage = PlayerPrefs.GetInt($"{ClearedStageKeyPrefix}{chapter}", 0);
+            var currentStage = GetCurrentStageForChapter(chapter);
+            button.interactable = stage <= currentStage;
+            var text = button.GetComponentInChildren<Text>(true);
+            if (text != null)
+            {
+                var stageName = stage == 3 ? "Boss" : $"Stage {stage}";
+                var state = stage <= clearedStage ? "CLEAR" : stage == currentStage ? "NOW" : "LOCKED";
+                text.text = $"{stageName}\n{state}";
+            }
+        }
+
+        private static bool TryGetStageFromName(string objectName, out int stage)
+        {
+            stage = 0;
+            if (objectName == "Stage 1 Node")
+            {
+                stage = 1;
+                return true;
+            }
+
+            if (objectName == "Stage 2 Node")
+            {
+                stage = 2;
+                return true;
+            }
+
+            if (objectName == "Boss Stage Node")
+            {
+                stage = 3;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static int GetCurrentStageForChapter(int chapter)
+        {
+            var clearedStage = PlayerPrefs.GetInt($"{ClearedStageKeyPrefix}{chapter}", 0);
+            return Mathf.Clamp(clearedStage + 1, 1, 3);
         }
 
         private void LoadTargetScene()

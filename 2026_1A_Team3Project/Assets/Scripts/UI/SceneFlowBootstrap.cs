@@ -1,11 +1,17 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Team3Project.GameSystems;
 
 namespace Team3Project.UI
 {
     public static class SceneFlowBootstrap
     {
+        private const string SelectedChapterKey = "Team3.SelectedChapter";
+        private const string SelectedStageKey = "Team3.SelectedStage";
+        private const string ClearedStageKeyPrefix = "Team3.ClearedStage.";
+        private const string UnlockedChapterKey = "Team3.UnlockedChapter";
+
         private static int selectedChapter = 1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -30,14 +36,10 @@ namespace Team3Project.UI
 
         private static void SetupChapterSelectScene()
         {
-            WireButton("Enter Chapter Button", () =>
-            {
-                if (selectedChapter == 1)
-                {
-                    SceneManager.LoadScene("StageMapScene");
-                }
-            });
+            WireButton("Enter Chapter Button", EnterSelectedChapter);
 
+            WireButton("Previous Chapter Arrow", () => ChangeChapter(-1));
+            WireButton("Next Chapter Arrow", () => ChangeChapter(1));
             WireButton("Back Button", () => SceneManager.LoadScene("TitleScene"));
             EnsureChapterArrowFallback();
             RefreshChapterSelect();
@@ -49,25 +51,36 @@ namespace Team3Project.UI
             RefreshChapterSelect();
         }
 
+        public static void EnterSelectedChapter()
+        {
+            if (selectedChapter > GetUnlockedChapter())
+            {
+                return;
+            }
+
+            BattleController.ResetChapterRun(selectedChapter);
+            SceneManager.LoadScene("StageMapScene");
+        }
+
         public static void RefreshChapterSelect()
         {
             SetText("Title Text", $"Chapter {selectedChapter}");
             var enter = FindButton("Enter Chapter Button");
             if (enter != null)
             {
-                enter.interactable = selectedChapter == 1;
+                enter.interactable = selectedChapter <= GetUnlockedChapter();
             }
 
             var lockOne = GameObject.Find("Chapter Lock Hidden 1");
             if (lockOne != null)
             {
-                lockOne.SetActive(selectedChapter != 1);
+                lockOne.SetActive(selectedChapter > GetUnlockedChapter());
             }
 
             var lockTwo = GameObject.Find("Chapter Lock Hidden 2");
             if (lockTwo != null)
             {
-                lockTwo.SetActive(false);
+                lockTwo.SetActive(selectedChapter > GetUnlockedChapter());
             }
         }
 
@@ -86,8 +99,60 @@ namespace Team3Project.UI
         private static void SetupStageMapScene()
         {
             SetText("Title Text", $"Chapter {selectedChapter} Stage Map");
-            WireButton("Stage 2 Node", () => SceneManager.LoadScene("BattleScene"));
+            WireStageButton("Stage 1 Node", 1);
+            WireStageButton("Stage 2 Node", 2);
+            WireStageButton("Boss Stage Node", 3);
             WireButton("Back Button", () => SceneManager.LoadScene("ChapterSelectScene"));
+        }
+
+        private static void WireStageButton(string objectName, int stage)
+        {
+            var button = FindButton(objectName);
+            if (button == null)
+            {
+                return;
+            }
+
+            var unlockedStage = GetCurrentStageForChapter(selectedChapter);
+            var clearedStage = PlayerPrefs.GetInt($"{ClearedStageKeyPrefix}{selectedChapter}", 0);
+            button.interactable = stage <= unlockedStage;
+            SetButtonLabel(button, GetStageLabel(stage, clearedStage, unlockedStage));
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() =>
+            {
+                if (stage > GetCurrentStageForChapter(selectedChapter))
+                {
+                    return;
+                }
+
+                PlayerPrefs.SetInt(SelectedChapterKey, selectedChapter);
+                PlayerPrefs.SetInt(SelectedStageKey, stage);
+                PlayerPrefs.Save();
+                SceneManager.LoadScene("BattleScene");
+            });
+
+            if (button.GetComponent<DirectButtonClicker>() == null)
+            {
+                button.gameObject.AddComponent<DirectButtonClicker>();
+            }
+        }
+
+        private static string GetStageLabel(int stage, int clearedStage, int unlockedStage)
+        {
+            var name = stage == 3 ? "Boss" : $"Stage {stage}";
+            var state = stage <= clearedStage ? "CLEAR" : stage == unlockedStage ? "NOW" : "LOCKED";
+            return $"{name}\n{state}";
+        }
+
+        private static int GetCurrentStageForChapter(int chapter)
+        {
+            var clearedStage = PlayerPrefs.GetInt($"{ClearedStageKeyPrefix}{chapter}", 0);
+            return Mathf.Clamp(clearedStage + 1, 1, 3);
+        }
+
+        private static int GetUnlockedChapter()
+        {
+            return Mathf.Clamp(PlayerPrefs.GetInt(UnlockedChapterKey, 1), 1, 3);
         }
 
         private static void WireButton(string objectName, UnityEngine.Events.UnityAction action)
@@ -111,6 +176,15 @@ namespace Team3Project.UI
         {
             var target = GameObject.Find(objectName);
             return target == null ? null : target.GetComponent<Button>();
+        }
+
+        private static void SetButtonLabel(Button button, string value)
+        {
+            var text = button == null ? null : button.GetComponentInChildren<Text>(true);
+            if (text != null)
+            {
+                text.text = value;
+            }
         }
 
         private static void SetText(string objectName, string value)
