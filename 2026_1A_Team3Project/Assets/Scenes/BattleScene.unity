@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!29 &1
 OcclusionCullingSettings:
@@ -1671,6 +1671,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5bfcfd2e0707f984d9d02011146e1585, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &880000100
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1337469619}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8eb04476fbd84f04b8e8038ab3d51234, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  baseSlot: {fileID: 0}
+  toppingSlot: {fileID: 0}
+  scrollSlot: {fileID: 0}
+  craftedScrollText: {fileID: 0}
 --- !u!1 &928007533
 GameObject:
   m_ObjectHideFlags: 0
@@ -1862,8 +1878,11 @@ MonoBehaviour:
   chapterIndex: 1
   stageIndex: 1
   baseMaxCost: 4
+  maxCostCap: 10
   cardsDrawnPerTurn: 3
   resourcesPerTurn: 10
+  maxResources: 56
+  startingEmptyScrollCount: 18
 --- !u!4 &941344384
 Transform:
   m_ObjectHideFlags: 0
@@ -2550,8 +2569,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 880000100}
   - component: {fileID: 1337469620}
+  - component: {fileID: 880000100}
   - component: {fileID: 1337469622}
   - component: {fileID: 1337469621}
   m_Layer: 0
@@ -3763,20 +3782,3 @@ SceneRoots:
   - {fileID: 1322758525}
   - {fileID: 941344384}
   - {fileID: 928007538}
-
---- !u!114 &880000100
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1337469619}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8eb04476fbd84f04b8e8038ab3d51234, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  baseSlot: {fileID: 0}
-  toppingSlot: {fileID: 0}
-  scrollSlot: {fileID: 0}
-  craftedScrollText: {fileID: 0}
