@@ -18,6 +18,8 @@ namespace Team3Project.UI
         private bool isDragging;
         private bool hasCraftedCard;
         private Text cardText;
+        private Image baseIcon;
+        private Image toppingIcon;
         private int boundCardId = -1;
 
         public bool IsEmptyScroll => !hasCraftedCard;
@@ -196,13 +198,16 @@ namespace Team3Project.UI
             hasCraftedCard = true;
             if (TryGetComponent<Image>(out var image))
             {
-                image.color = new Color(1f, 0.92f, 0.62f, 1f);
+                image.color = GetScrollColor(card.ToppingFamily);
             }
 
             EnsureCardText();
+            ConfigureCardTextLayout();
+            EnsureIngredientIcons();
+            SetIngredientIcons(card);
             if (cardText != null)
             {
-                cardText.text = $"{card.DisplayName}\nCost {card.Cost}\nPower {card.Power}";
+                cardText.text = $"{card.DisplayName}\n비용 {card.Cost}\n위력 {card.Power}";
                 cardText.color = new Color(0.15f, 0.08f, 0.03f, 1f);
             }
         }
@@ -265,6 +270,9 @@ namespace Team3Project.UI
             {
                 cardText.text = string.Empty;
             }
+
+            SetIconActive(baseIcon, false);
+            SetIconActive(toppingIcon, false);
         }
 
         private void EnsureCardText()
@@ -294,6 +302,120 @@ namespace Team3Project.UI
             cardText.resizeTextMinSize = 8;
             cardText.resizeTextMaxSize = 14;
             cardText.raycastTarget = false;
+        }
+
+        private void ConfigureCardTextLayout()
+        {
+            if (cardText == null || !cardText.TryGetComponent<RectTransform>(out var textRect))
+            {
+                return;
+            }
+
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(4f, 4f);
+            textRect.offsetMax = new Vector2(-4f, -34f);
+            cardText.alignment = TextAnchor.MiddleCenter;
+        }
+
+        private void EnsureIngredientIcons()
+        {
+            if (baseIcon == null)
+            {
+                baseIcon = CreateIngredientIcon("Base Ingredient Icon", new Vector2(-17f, -8f));
+            }
+
+            if (toppingIcon == null)
+            {
+                toppingIcon = CreateIngredientIcon("Topping Ingredient Icon", new Vector2(17f, -8f));
+            }
+        }
+
+        private Image CreateIngredientIcon(string iconName, Vector2 anchoredPosition)
+        {
+            var iconObject = new GameObject(iconName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            iconObject.transform.SetParent(transform, false);
+            var iconRect = iconObject.GetComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(0.5f, 1f);
+            iconRect.anchorMax = new Vector2(0.5f, 1f);
+            iconRect.pivot = new Vector2(0.5f, 1f);
+            iconRect.anchoredPosition = anchoredPosition;
+            iconRect.sizeDelta = new Vector2(28f, 28f);
+
+            var icon = iconObject.GetComponent<Image>();
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            return icon;
+        }
+
+        private void SetIngredientIcons(ScrollCard card)
+        {
+            if (card == null)
+            {
+                SetIconActive(baseIcon, false);
+                SetIconActive(toppingIcon, false);
+                return;
+            }
+
+            SetIcon(baseIcon, new MergeResource(card.BaseFamily, card.BaseStage));
+            SetIcon(toppingIcon, new MergeResource(card.ToppingFamily, card.ToppingStage));
+        }
+
+        private static void SetIcon(Image icon, MergeResource resource)
+        {
+            if (icon == null)
+            {
+                return;
+            }
+
+            if (MergeResourceVisuals.TryGetSprite(resource, out var sprite))
+            {
+                icon.sprite = sprite;
+                icon.color = Color.white;
+            }
+            else
+            {
+                icon.sprite = null;
+                icon.color = GetIngredientFallbackColor(resource.Family);
+            }
+
+            SetIconActive(icon, true);
+        }
+
+        private static void SetIconActive(Image icon, bool active)
+        {
+            if (icon != null)
+            {
+                icon.gameObject.SetActive(active);
+            }
+        }
+
+        private static Color GetScrollColor(ResourceFamily family)
+        {
+            return family switch
+            {
+                ResourceFamily.Berry => new Color(1f, 0.75f, 0.82f, 1f),
+                ResourceFamily.Chocolate => new Color(0.78f, 0.62f, 0.48f, 1f),
+                ResourceFamily.Marshmallow => new Color(0.9f, 0.9f, 0.86f, 1f),
+                ResourceFamily.PoppingCandy => new Color(0.72f, 0.9f, 1f, 1f),
+                _ => new Color(1f, 0.92f, 0.62f, 1f)
+            };
+        }
+
+        private static Color GetIngredientFallbackColor(ResourceFamily family)
+        {
+            return family switch
+            {
+                ResourceFamily.Sugar => new Color(0.95f, 0.9f, 0.62f, 1f),
+                ResourceFamily.Dough => new Color(0.78f, 0.58f, 0.36f, 1f),
+                ResourceFamily.Dairy => new Color(0.9f, 0.95f, 1f, 1f),
+                ResourceFamily.Egg => new Color(1f, 0.86f, 0.45f, 1f),
+                ResourceFamily.Berry => new Color(1f, 0.75f, 0.82f, 1f),
+                ResourceFamily.Chocolate => new Color(0.78f, 0.62f, 0.48f, 1f),
+                ResourceFamily.Marshmallow => new Color(0.98f, 0.97f, 0.92f, 1f),
+                ResourceFamily.PoppingCandy => new Color(0.72f, 0.9f, 1f, 1f),
+                _ => Color.gray
+            };
         }
     }
 }

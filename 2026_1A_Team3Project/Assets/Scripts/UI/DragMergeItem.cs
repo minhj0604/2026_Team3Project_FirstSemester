@@ -17,6 +17,7 @@ namespace Team3Project.UI
         private Vector2 startPosition;
         private bool isDragging;
         private Text labelText;
+        private const string LabelObjectName = "Resource Level Label";
 
         public MergeResource Resource => new(family, stage);
         public bool IsDragging => isDragging;
@@ -54,7 +55,8 @@ namespace Team3Project.UI
 
             if (labelText == null)
             {
-                labelText = GetComponentInChildren<Text>(true);
+                var labelTransform = transform.Find(LabelObjectName);
+                labelText = labelTransform == null ? null : labelTransform.GetComponent<Text>();
             }
         }
 
@@ -248,38 +250,58 @@ namespace Team3Project.UI
         {
             if (labelText != null)
             {
-                labelText.text = $"{Resource.DisplayName}\nStage {stage}";
+                labelText.text = stage.ToString();
             }
         }
 
         private void EnsureLabel()
         {
-            if (labelText != null)
+            if (labelText == null)
             {
-                return;
+                var labelTransform = transform.Find(LabelObjectName);
+                if (labelTransform != null)
+                {
+                    labelText = labelTransform.GetComponent<Text>();
+                }
             }
 
-            var textObject = new GameObject("Resource Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
-            textObject.transform.SetParent(transform, false);
-            var textRect = textObject.GetComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = new Vector2(-10f, -18f);
-            textRect.offsetMax = new Vector2(10f, 10f);
+            if (labelText == null)
+            {
+                var textObject = new GameObject(LabelObjectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+                textObject.transform.SetParent(transform, false);
+                labelText = textObject.GetComponent<Text>();
+                labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                if (labelText.font == null)
+                {
+                    labelText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                }
+            }
 
-            labelText = textObject.GetComponent<Text>();
+            labelText.transform.SetAsLastSibling();
+            var textRect = labelText.GetComponent<RectTransform>();
+            textRect.anchorMin = new Vector2(0f, 0f);
+            textRect.anchorMax = new Vector2(1f, 0f);
+            textRect.pivot = new Vector2(0.5f, 0f);
+            textRect.anchoredPosition = new Vector2(0f, 2f);
+            textRect.sizeDelta = new Vector2(0f, 20f);
+
             labelText.alignment = TextAnchor.LowerCenter;
-            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (labelText.font == null)
-            {
-                labelText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            }
-            labelText.fontSize = 10;
+            labelText.fontSize = 16;
+            labelText.fontStyle = FontStyle.Bold;
             labelText.resizeTextForBestFit = true;
-            labelText.resizeTextMinSize = 7;
-            labelText.resizeTextMaxSize = 12;
-            labelText.color = Color.white;
+            labelText.resizeTextMinSize = 10;
+            labelText.resizeTextMaxSize = 18;
+            labelText.color = new Color(0.08f, 0.07f, 0.06f, 1f);
             labelText.raycastTarget = false;
+
+            var outline = labelText.GetComponent<Outline>();
+            if (outline == null)
+            {
+                outline = labelText.gameObject.AddComponent<Outline>();
+            }
+
+            outline.effectColor = new Color(1f, 1f, 1f, 0.85f);
+            outline.effectDistance = new Vector2(1f, -1f);
         }
 
         private static Color GetFallbackColor(ResourceFamily resourceFamily)

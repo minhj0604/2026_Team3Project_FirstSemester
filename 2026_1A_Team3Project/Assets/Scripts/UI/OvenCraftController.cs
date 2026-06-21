@@ -62,7 +62,7 @@ namespace Team3Project.UI
             var resource = item.Resource;
             if (resource.Stage <= 0)
             {
-                SetResult("Stage 0 resources must be merged first");
+                SetResult("먼저 합성");
                 return false;
             }
 
@@ -120,7 +120,7 @@ namespace Team3Project.UI
             {
                 if (craftedScrollText != null)
                 {
-                    craftedScrollText.text = "Need base resource";
+                    craftedScrollText.text = "베이스 필요";
                 }
                 return;
             }
@@ -129,7 +129,7 @@ namespace Team3Project.UI
             {
                 if (craftedScrollText != null)
                 {
-                    craftedScrollText.text = "Need empty scroll";
+                    craftedScrollText.text = "빈 스크롤 필요";
                 }
                 return;
             }
@@ -146,7 +146,7 @@ namespace Team3Project.UI
             {
                 if (craftedScrollText != null)
                 {
-                    craftedScrollText.text = "Cannot craft scroll";
+                    craftedScrollText.text = "제작 불가";
                 }
 
                 baseSlot.ReturnPlacedObject();
@@ -158,7 +158,7 @@ namespace Team3Project.UI
             scrollItem.SetCraftedCard(card);
             if (craftedScrollText != null)
             {
-                craftedScrollText.text = $"{card.DisplayName}\nCost {card.Cost} / Power {card.Power}\nClick card to use";
+                craftedScrollText.text = $"{card.DisplayName}\n비용 {card.Cost} / 위력 {card.Power}";
             }
 
             baseSlot.ConsumePlacedResource();
@@ -183,13 +183,13 @@ namespace Team3Project.UI
         {
             if (!directBaseResource.HasValue)
             {
-                SetResult("Need base resource");
+                SetResult("베이스 필요");
                 return;
             }
 
             if (directScrollItem == null)
             {
-                SetResult("Need empty scroll");
+                SetResult("빈 스크롤 필요");
                 return;
             }
 
@@ -202,7 +202,7 @@ namespace Team3Project.UI
                     directToppingIndex,
                     out var card))
             {
-                SetResult("Cannot craft scroll");
+                SetResult("제작 불가");
                 directBaseItem?.ReturnToStart();
                 directToppingItem?.ReturnToStart();
                 directScrollItem.ReturnToOriginalSlot();
@@ -214,7 +214,7 @@ namespace Team3Project.UI
             directScrollItem.ReturnToOriginalSlot();
             directBaseItem?.ConsumeFromOven();
             directToppingItem?.ConsumeFromOven();
-            SetResult($"{card.DisplayName}\nCost {card.Cost} / Power {card.Power}\nClick card to use");
+            SetResult($"{card.DisplayName}\n비용 {card.Cost} / 위력 {card.Power}");
 
             ClearDirectSlots();
         }

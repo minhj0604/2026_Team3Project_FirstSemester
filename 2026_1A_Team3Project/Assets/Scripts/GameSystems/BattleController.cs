@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -20,7 +21,7 @@ namespace Team3Project.GameSystems
         [SerializeField] private int maxCostCap = 10;
         [SerializeField] private int cardsDrawnPerTurn = 3;
         [SerializeField] private int resourcesPerTurn = 10;
-        [SerializeField] private int maxResources = 56;
+        [SerializeField] private int maxResources = 36;
         [SerializeField] private int startingEmptyScrollCount = 18;
 
         public event Action StateChanged;
@@ -40,12 +41,15 @@ namespace Team3Project.GameSystems
         public int MaxResources => ResourceLimit;
         public int ActiveResourceCount => Resources.FindAll(resource => resource.CanUse).Count;
         public int VisibleHandCount => Hand.FindAll(card => card != null).Count;
-        public string LastLog { get; private set; } = "Ready.";
+        public string LastLog { get; private set; } = string.Empty;
+        public EnemyPose EnemyPose { get; private set; } = EnemyPose.Idle;
+        public int PlayerHitPulse { get; private set; }
 
         private readonly Queue<ScrollCard> drawDeck = new();
         private static readonly Dictionary<int, List<ScrollCard>> ChapterDrawDecks = new();
         private static readonly Dictionary<int, List<ScrollCard>> ChapterDiscardDecks = new();
-        private int ResourceLimit => maxResources > 0 ? maxResources : 56;
+        private Coroutine enemyPoseRoutine;
+        private int ResourceLimit => maxResources > 0 ? maxResources : 36;
 
         public static void ResetChapterRun(int chapter)
         {
@@ -64,7 +68,7 @@ namespace Team3Project.GameSystems
 
             if (Player.MaxHp <= 0)
             {
-                Player.Reset("Player", 50, ElementType.None, 0);
+                Player.Reset("마카롱", 50, ElementType.None, 0);
             }
         }
 
@@ -77,10 +81,11 @@ namespace Team3Project.GameSystems
         {
             MaxCost = baseMaxCost + Mathf.Max(0, stageIndex - 1);
             CurrentCost = 0;
-            Player.Reset("Macaroon", 50, ElementType.None, 0);
-            Enemy.Reset(stageIndex % 3 == 0 ? "Boss DuCookie" : "DuCookie", stageIndex % 3 == 0 ? 70 : 45, ElementType.Berry, stageIndex % 3 == 0 ? 3 : 0);
+            Player.Reset("마카롱", 50, ElementType.None, 0);
+            Enemy.Reset(stageIndex % 3 == 0 ? "보스 두쫀쿠" : "두쫀쿠", stageIndex % 3 == 0 ? 70 : 45, ElementType.Berry, stageIndex % 3 == 0 ? 3 : 0);
             Hand.Clear();
             Resources.Clear();
+            SetEnemyPose(EnemyPose.Idle);
             LoadChapterDeckState();
             BeginPlayerTurn();
         }
@@ -92,7 +97,7 @@ namespace Team3Project.GameSystems
             CurrentCost = Mathf.Min(CurrentCost + MaxCost, maxCostCap);
             DrawEmptyScrolls(cardsDrawnPerTurn);
             AddTurnResources();
-            LastLog = "Player turn. Craft scrolls, then use them.";
+            LastLog = "플레이어 턴";
             NotifyChanged();
         }
 
@@ -113,7 +118,7 @@ namespace Team3Project.GameSystems
 
             Resources[first] = new MergeResource(family, stage + 1);
             Resources[second] = MergeResource.Empty;
-            LastLog = $"Merged {family} to Lv.{stage + 2}.";
+            LastLog = "자원 합성";
             NotifyChanged();
             return true;
         }
@@ -122,7 +127,7 @@ namespace Team3Project.GameSystems
         {
             if (firstResource.Family != secondResource.Family || firstResource.Stage != secondResource.Stage || firstResource.Stage >= 3)
             {
-                LastLog = "Only matching resources can merge.";
+                LastLog = "같은 자원만 합성 가능";
                 NotifyChanged();
                 return false;
             }
@@ -141,7 +146,7 @@ namespace Team3Project.GameSystems
 
             Resources[firstIndex] = new MergeResource(firstResource.Family, firstResource.Stage + 1);
             Resources[secondIndex] = MergeResource.Empty;
-            LastLog = $"Merged {firstResource.Family} to Lv.{firstResource.Stage + 2}.";
+            LastLog = "자원 합성";
             SaveChapterDeckState();
             NotifyChanged();
             return true;
@@ -158,7 +163,7 @@ namespace Team3Project.GameSystems
             var secondResource = Resources[secondIndex];
             if (!firstResource.CanUse || !secondResource.CanUse || firstResource.Family != secondResource.Family || firstResource.Stage != secondResource.Stage || firstResource.Stage >= 3)
             {
-                LastLog = "Only matching resources can merge.";
+                LastLog = "같은 자원만 합성 가능";
                 NotifyChanged();
                 return false;
             }
@@ -166,7 +171,7 @@ namespace Team3Project.GameSystems
             var resultResource = new MergeResource(firstResource.Family, firstResource.Stage + 1);
             Resources[secondIndex] = resultResource;
             Resources[firstIndex] = MergeResource.Empty;
-            LastLog = $"Merged {firstResource.Family} to Lv.{firstResource.Stage + 2}.";
+            LastLog = "자원 합성";
             NotifyChanged();
             return true;
         }
@@ -217,7 +222,7 @@ namespace Team3Project.GameSystems
             var handIndex = Hand.FindIndex(card => card != null && card.IsEmpty);
             if (handIndex < 0)
             {
-                LastLog = "No empty scroll in hand.";
+                LastLog = "빈 스크롤 없음";
                 NotifyChanged();
                 return false;
             }
@@ -225,7 +230,7 @@ namespace Team3Project.GameSystems
             var baseIndex = Resources.FindIndex(resource => resource.CanUse && resource.Role == ResourceRole.Base && resource.Stage > 0);
             if (baseIndex < 0)
             {
-                LastLog = "Need a stage 1+ base resource.";
+                LastLog = "베이스 자원 필요";
                 NotifyChanged();
                 return false;
             }
@@ -233,7 +238,7 @@ namespace Team3Project.GameSystems
             var toppingIndex = Resources.FindIndex(resource => resource.CanUse && resource.Role == ResourceRole.Topping && resource.Stage > 0);
             if (toppingIndex < 0)
             {
-                LastLog = "Need a stage 1+ topping resource.";
+                LastLog = "토핑 자원 필요";
                 NotifyChanged();
                 return false;
             }
@@ -243,7 +248,7 @@ namespace Team3Project.GameSystems
             Resources[baseIndex] = MergeResource.Empty;
             Resources[toppingIndex] = MergeResource.Empty;
             Hand[handIndex] = ScrollCard.Craft(baseResource, toppingResource, Hand[handIndex].Id);
-            LastLog = $"Crafted {Hand[handIndex].DisplayName}.";
+            LastLog = "스크롤 제작";
             SaveChapterDeckState();
             NotifyChanged();
             return true;
@@ -254,42 +259,42 @@ namespace Team3Project.GameSystems
             craftedCard = null;
             if (handIndex < 0 || handIndex >= Hand.Count || Hand[handIndex] == null || !Hand[handIndex].IsEmpty)
             {
-                LastLog = "Need an empty scroll.";
+                LastLog = "빈 스크롤 필요";
                 NotifyChanged();
                 return false;
             }
 
             if (baseResource.Stage <= 0)
             {
-                LastLog = "Base resource must be stage 1+.";
+                LastLog = "베이스 자원 필요";
                 NotifyChanged();
                 return false;
             }
 
             if (!toppingResource.HasValue || toppingResource.Value.Stage <= 0)
             {
-                LastLog = "Topping resource must be stage 1+.";
+                LastLog = "토핑 자원 필요";
                 NotifyChanged();
                 return false;
             }
 
             if (!ResourceSlotMatches(baseResourceIndex, baseResource) || !ResourceSlotMatches(toppingResourceIndex, toppingResource.Value))
             {
-                LastLog = "Selected resource changed.";
+                LastLog = "자원 변경됨";
                 NotifyChanged();
                 return false;
             }
 
             if (!TryConsumeResourceSlots(baseResourceIndex, toppingResourceIndex))
             {
-                LastLog = "Cannot use selected resources.";
+                LastLog = "자원 사용 불가";
                 NotifyChanged();
                 return false;
             }
 
             craftedCard = ScrollCard.Craft(baseResource, toppingResource, Hand[handIndex].Id);
             Hand[handIndex] = craftedCard;
-            LastLog = $"Crafted {craftedCard.DisplayName}.";
+            LastLog = "스크롤 제작";
             SaveChapterDeckState();
             NotifyChanged();
             return true;
@@ -321,7 +326,7 @@ namespace Team3Project.GameSystems
             var handIndex = Hand.FindIndex(item => item != null && card != null && item.Id == card.Id);
             if (handIndex < 0)
             {
-                LastLog = "Card is not in hand.";
+                LastLog = "손패에 없음";
                 NotifyChanged();
                 return false;
             }
@@ -344,14 +349,14 @@ namespace Team3Project.GameSystems
 
             if (card.IsEmpty)
             {
-                LastLog = "Empty scroll has no effect.";
+                LastLog = "빈 스크롤";
                 NotifyChanged();
                 return false;
             }
 
             if (CurrentCost < card.Cost)
             {
-                LastLog = "Not enough cost.";
+                LastLog = "행동력 부족";
                 NotifyChanged();
                 return false;
             }
@@ -375,7 +380,7 @@ namespace Team3Project.GameSystems
             var handIndex = Hand.FindIndex(card => card != null && !card.IsEmpty);
             if (handIndex < 0)
             {
-                LastLog = "No crafted scroll in hand.";
+                LastLog = "제작 스크롤 없음";
                 NotifyChanged();
                 return;
             }
@@ -383,7 +388,7 @@ namespace Team3Project.GameSystems
             var card = Hand[handIndex];
             if (CurrentCost < card.Cost)
             {
-                LastLog = "Not enough cost.";
+                LastLog = "행동력 부족";
                 NotifyChanged();
                 return;
             }
@@ -433,7 +438,7 @@ namespace Team3Project.GameSystems
             MarkStageCleared();
             if (stageIndex >= FinalStageIndex)
             {
-                LastLog = "Chapter clear!";
+                LastLog = "챕터 클리어";
                 SaveChapterDeckState();
                 PlayerPrefs.SetInt(UnlockedChapterKey, Mathf.Max(PlayerPrefs.GetInt(UnlockedChapterKey, 1), chapterIndex + 1));
                 PlayerPrefs.SetInt(SelectedStageKey, 1);
@@ -467,26 +472,27 @@ namespace Team3Project.GameSystems
                     }
 
                     var dealt = Enemy.TakeDamage(damage);
-                    LastLog = $"{card.DisplayName} dealt {dealt} damage.";
+                    SetEnemyPose(EnemyPose.Hit, 0.45f);
+                    LastLog = $"피해 {dealt}";
                     break;
                 case ScrollEffectType.Guard:
                     Player.Guard += card.Power;
-                    LastLog = $"{card.DisplayName} gave {card.Power} guard.";
+                    LastLog = $"방어 {card.Power}";
                     break;
                 case ScrollEffectType.Buff:
                     Player.Strength += card.Power;
-                    LastLog = $"{card.DisplayName} raised strength by {card.Power}.";
+                    LastLog = $"공격 강화 {card.Power}";
                     break;
                 case ScrollEffectType.Debuff:
                     Enemy.Strength -= card.Power;
-                    LastLog = $"{card.DisplayName} weakened enemy by {card.Power}.";
+                    LastLog = $"적 약화 {card.Power}";
                     break;
             }
 
             if (Enemy.IsDead)
             {
                 Phase = BattlePhase.StageClear;
-                LastLog = "Stage clear!";
+                LastLog = "스테이지 클리어";
                 MarkStageCleared();
             }
         }
@@ -509,7 +515,7 @@ namespace Team3Project.GameSystems
                 if (Enemy.WeaknessHitsRemaining == 0)
                 {
                     Enemy.IsBroken = true;
-                    LastLog = "Enemy is broken.";
+                    LastLog = "브레이크";
                 }
             }
 
@@ -522,14 +528,17 @@ namespace Team3Project.GameSystems
             {
                 Enemy.IsBroken = false;
                 Enemy.WeaknessHitsRemaining = Enemy.WeaknessHitsRequired;
-                LastLog = "Enemy skipped turn while recovering.";
+                SetEnemyPose(EnemyPose.Idle);
+                LastLog = "적 행동 불가";
                 BeginPlayerTurn();
                 return;
             }
 
+            SetEnemyPose(EnemyPose.Attack, 0.45f);
             var attack = Mathf.Max(1, 8 + Enemy.Strength);
             var dealt = Player.TakeDamage(attack);
-            LastLog = $"Enemy dealt {dealt} damage.";
+            PlayerHitPulse++;
+            LastLog = $"피해 받음 {dealt}";
 
             if (Player.IsDead)
             {
@@ -585,7 +594,7 @@ namespace Team3Project.GameSystems
                 Element = ElementType.None,
                 Power = 0,
                 Cost = 0,
-                DisplayName = "Empty Scroll"
+                DisplayName = "빈 스크롤"
             };
             card.Id = ScrollCard.CreateId();
             return card;
@@ -628,8 +637,37 @@ namespace Team3Project.GameSystems
                 Element = card.Element,
                 Power = card.Power,
                 Cost = card.Cost,
-                DisplayName = card.DisplayName
+                DisplayName = card.DisplayName,
+                BaseFamily = card.BaseFamily,
+                BaseStage = card.BaseStage,
+                ToppingFamily = card.ToppingFamily,
+                ToppingStage = card.ToppingStage
             };
+        }
+
+        private void SetEnemyPose(EnemyPose pose, float resetDelay = 0f)
+        {
+            EnemyPose = pose;
+            NotifyChanged();
+
+            if (enemyPoseRoutine != null)
+            {
+                StopCoroutine(enemyPoseRoutine);
+                enemyPoseRoutine = null;
+            }
+
+            if (resetDelay > 0f)
+            {
+                enemyPoseRoutine = StartCoroutine(ResetEnemyPoseAfter(resetDelay));
+            }
+        }
+
+        private IEnumerator ResetEnemyPoseAfter(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            EnemyPose = EnemyPose.Idle;
+            enemyPoseRoutine = null;
+            NotifyChanged();
         }
 
         private void BuildStarterDeck()
@@ -693,7 +731,7 @@ namespace Team3Project.GameSystems
         {
             if (ActiveResourceCount >= ResourceLimit)
             {
-                LastLog = "Resource storage is full.";
+                LastLog = "자원 보관함 가득 참";
                 return;
             }
 

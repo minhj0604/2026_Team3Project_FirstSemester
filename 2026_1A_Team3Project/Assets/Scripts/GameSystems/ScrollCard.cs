@@ -14,9 +14,13 @@ namespace Team3Project.GameSystems
         public int Power;
         public int Cost;
         public string DisplayName;
+        public ResourceFamily BaseFamily;
+        public int BaseStage;
+        public ResourceFamily ToppingFamily;
+        public int ToppingStage;
 
         public bool TargetsEnemy => EffectType is ScrollEffectType.Attack or ScrollEffectType.Debuff;
-        public bool IsEmpty => string.IsNullOrEmpty(DisplayName) || DisplayName == "Empty Scroll";
+        public bool IsEmpty => string.IsNullOrEmpty(DisplayName) || DisplayName == "Empty Scroll" || DisplayName == "빈 스크롤";
 
         public static int CreateId()
         {
@@ -65,14 +69,42 @@ namespace Team3Project.GameSystems
                 Element = element,
                 Power = power,
                 Cost = Mathf.Clamp(stage, 1, 3),
-                DisplayName = BuildName(effect, element, stage)
+                DisplayName = BuildName(effect, element, stage),
+                BaseFamily = baseResource.Family,
+                BaseStage = baseResource.Stage,
+                ToppingFamily = toppingResource?.Family ?? ResourceFamily.Berry,
+                ToppingStage = toppingResource?.Stage ?? 0
             };
         }
 
         private static string BuildName(ScrollEffectType effect, ElementType element, int stage)
         {
-            var prefix = element == ElementType.None ? string.Empty : $"{element} ";
-            return $"{prefix}{effect} Stage {stage}";
+            var prefix = element == ElementType.None ? string.Empty : $"{ElementName(element)} ";
+            return $"{prefix}{EffectName(effect)} {stage}";
+        }
+
+        private static string EffectName(ScrollEffectType effect)
+        {
+            return effect switch
+            {
+                ScrollEffectType.Attack => "공격",
+                ScrollEffectType.Guard => "방어",
+                ScrollEffectType.Buff => "강화",
+                ScrollEffectType.Debuff => "약화",
+                _ => "스크롤"
+            };
+        }
+
+        private static string ElementName(ElementType element)
+        {
+            return element switch
+            {
+                ElementType.Berry => "딸기",
+                ElementType.Chocolate => "초콜릿",
+                ElementType.Marshmallow => "마시멜로",
+                ElementType.PoppingCandy => "팝핑",
+                _ => string.Empty
+            };
         }
     }
 }

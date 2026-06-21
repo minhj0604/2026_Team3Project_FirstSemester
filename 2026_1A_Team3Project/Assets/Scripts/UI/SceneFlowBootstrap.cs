@@ -64,7 +64,7 @@ namespace Team3Project.UI
 
         public static void RefreshChapterSelect()
         {
-            SetText("Title Text", $"Chapter {selectedChapter}");
+            SetText("Title Text", $"{selectedChapter}장");
             var enter = FindButton("Enter Chapter Button");
             if (enter != null)
             {
@@ -98,7 +98,7 @@ namespace Team3Project.UI
 
         private static void SetupStageMapScene()
         {
-            SetText("Title Text", $"Chapter {selectedChapter} Stage Map");
+            SetText("Title Text", $"{selectedChapter}장 스테이지");
             WireStageButton("Stage 1 Node", 1);
             WireStageButton("Stage 2 Node", 2);
             WireStageButton("Boss Stage Node", 3);
@@ -139,8 +139,8 @@ namespace Team3Project.UI
 
         private static string GetStageLabel(int stage, int clearedStage, int unlockedStage)
         {
-            var name = stage == 3 ? "Boss" : $"Stage {stage}";
-            var state = stage <= clearedStage ? "CLEAR" : stage == unlockedStage ? "NOW" : "LOCKED";
+            var name = stage == 3 ? "보스" : $"{stage}스테이지";
+            var state = stage <= clearedStage ? "완료" : stage == unlockedStage ? "진행" : "잠김";
             return $"{name}\n{state}";
         }
 

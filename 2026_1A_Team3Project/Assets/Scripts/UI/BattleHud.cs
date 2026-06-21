@@ -74,13 +74,13 @@ namespace Team3Project.UI
                 return;
             }
 
-            SetText(playerText, $"{battle.Player.Name}\nHP {battle.Player.Hp}/{battle.Player.MaxHp}  Guard {battle.Player.Guard}\nStrength {battle.Player.Strength}");
-            SetText(enemyText, $"{battle.Enemy.Name}\nHP {battle.Enemy.Hp}/{battle.Enemy.MaxHp}\nWeak {battle.Enemy.Weakness}  Shield {battle.Enemy.WeaknessHitsRemaining}/{battle.Enemy.WeaknessHitsRequired}");
-            SetText(costText, $"Cost {battle.CurrentCost}/{battle.CostCap}");
-            SetText(handText, $"Hand {battle.VisibleHandCount}");
-            SetText(resourceText, $"Resources {battle.ActiveResourceCount}/{battle.MaxResources}");
+            SetText(playerText, $"{battle.Player.Name}\n체력 {battle.Player.Hp}/{battle.Player.MaxHp}  방어 {battle.Player.Guard}\n공격 {battle.Player.Strength}");
+            SetText(enemyText, $"{battle.Enemy.Name}\n체력 {battle.Enemy.Hp}/{battle.Enemy.MaxHp}\n약점 {ElementName(battle.Enemy.Weakness)}  실드 {battle.Enemy.WeaknessHitsRemaining}/{battle.Enemy.WeaknessHitsRequired}");
+            SetText(costText, $"행동력 {battle.CurrentCost}/{battle.CostCap}");
+            SetText(handText, $"손패 {battle.VisibleHandCount}");
+            SetText(resourceText, $"자원 {battle.ActiveResourceCount}/{battle.MaxResources}");
             SetText(logText, battle.LastLog);
-            SetButtonText(endTurnButton, battle.Phase == BattlePhase.StageClear ? "Next Stage" : "End Turn");
+            SetButtonText(endTurnButton, battle.Phase == BattlePhase.StageClear ? "다음" : "턴 종료");
             RefreshResourceItems();
             RefreshScrollItems();
         }
@@ -94,9 +94,13 @@ namespace Team3Project.UI
 
             foreach (var item in foundItems)
             {
-                if (item.TryGetComponent<Image>(out var image) && image.sprite != null && !resourceSprites.ContainsKey(item.Resource.Family))
+                if (item.TryGetComponent<Image>(out var image) && image.sprite != null)
                 {
-                    resourceSprites.Add(item.Resource.Family, image.sprite);
+                    MergeResourceVisuals.Register(item.Resource, image.sprite);
+                    if (!resourceSprites.ContainsKey(item.Resource.Family))
+                    {
+                        resourceSprites.Add(item.Resource.Family, image.sprite);
+                    }
                 }
             }
 
@@ -106,7 +110,7 @@ namespace Team3Project.UI
                 item.ClearInventorySlot();
             }
 
-            EnsureResourceSlotCapacity(battle == null ? 56 : battle.MaxResources);
+            EnsureResourceSlotCapacity(battle == null ? 36 : battle.MaxResources);
         }
 
         private void RefreshResourceItems()
@@ -129,9 +133,19 @@ namespace Team3Project.UI
                 var hasResource = i < battle.Resources.Count && battle.Resources[i].CanUse;
                 var resource = hasResource ? battle.Resources[i] : MergeResource.Empty;
                 resourceSprites.TryGetValue(resource.Family, out var sprite);
+                if (hasResource)
+                {
+                    MergeResourceVisuals.Register(resource, sprite);
+                }
+
                 if (resourceStorage != null)
                 {
                     item.SetInventorySlot(resourceStorage, GetResourceSlotPosition(i));
+                }
+
+                if (item.TryGetComponent<RectTransform>(out var rect))
+                {
+                    rect.sizeDelta = new Vector2(58f, 58f);
                 }
 
                 item.SetInventoryState(resource, sprite, hasResource, i);
@@ -167,9 +181,9 @@ namespace Team3Project.UI
 
         private Vector2 GetResourceSlotPosition(int index)
         {
-            const int columns = 8;
-            const float cellWidth = 54f;
-            const float cellHeight = 58f;
+            const int columns = 6;
+            const float cellWidth = 78f;
+            const float cellHeight = 78f;
             var column = index % columns;
             var row = index / columns;
             if (resourceStorage == null)
@@ -178,7 +192,7 @@ namespace Team3Project.UI
             }
 
             var rect = resourceStorage.rect;
-            return new Vector2((-rect.width * 0.5f) + 30f + column * cellWidth, (rect.height * 0.5f) - 38f - row * cellHeight);
+            return new Vector2((-rect.width * 0.5f) + 42f + column * cellWidth, (rect.height * 0.5f) - 44f - row * cellHeight);
         }
 
         private void CacheScrollItems()
@@ -241,6 +255,18 @@ namespace Team3Project.UI
             {
                 text.text = value;
             }
+        }
+
+        private static string ElementName(ElementType element)
+        {
+            return element switch
+            {
+                ElementType.Berry => "딸기",
+                ElementType.Chocolate => "초콜릿",
+                ElementType.Marshmallow => "마시멜로",
+                ElementType.PoppingCandy => "팝핑",
+                _ => "-"
+            };
         }
     }
 }

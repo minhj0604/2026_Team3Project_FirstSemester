@@ -264,7 +264,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Craft
+  m_Text: 제작
 --- !u!222 &163039285
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -343,7 +343,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: End Turn
+  m_Text: 턴 종료
 --- !u!222 &172929870
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -422,7 +422,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Play
+  m_Text: 사용
 --- !u!222 &179054680
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1421,6 +1421,7 @@ GameObject:
   - component: {fileID: 866693726}
   - component: {fileID: 866693728}
   - component: {fileID: 866693727}
+  - component: {fileID: 866693729}
   m_Layer: 0
   m_Name: Enemy Character
   m_TagString: Untagged
@@ -1467,7 +1468,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8ba5062473f75fd4ba6f6629a2fb65f0, type: 3}
+  m_Sprite: {fileID: 21300000, guid: cdac0d5ca4e84554b94d6e5888351652, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -1477,6 +1478,25 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &866693729
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 866693725}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d8a4f12b3c04c9196f1974eb3dc7b35, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Team3Project.UI.EnemyBattleSpriteController
+  battle: {fileID: 941344383}
+  enemyImage: {fileID: 866693727}
+  idleSprite: {fileID: 21300000, guid: cdac0d5ca4e84554b94d6e5888351652, type: 3}
+  attackSprite: {fileID: 21300000, guid: 4f798084549ff5f4daf13709f9d7988c, type: 3}
+  hitSprite: {fileID: 21300000, guid: 7b4fb0d806b6e5d4bb47499788369497, type: 3}
+  hitDuration: 0.32
+  shakeDistance: 18
 --- !u!222 &866693728
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1881,7 +1901,7 @@ MonoBehaviour:
   maxCostCap: 10
   cardsDrawnPerTurn: 3
   resourcesPerTurn: 10
-  maxResources: 56
+  maxResources: 36
   startingEmptyScrollCount: 18
 --- !u!4 &941344384
 Transform:
@@ -2484,7 +2504,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Merge
+  m_Text: 합성
 --- !u!222 &1312014146
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3037,6 +3057,7 @@ GameObject:
   - component: {fileID: 1783986308}
   - component: {fileID: 1783986310}
   - component: {fileID: 1783986309}
+  - component: {fileID: 1783986311}
   m_Layer: 0
   m_Name: Player Character
   m_TagString: Untagged
@@ -3093,6 +3114,25 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &1783986311
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1783986307}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b43f276a77f841408ad22121dfe3440f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Team3Project.UI.PlayerBattleFeedbackController
+  battle: {fileID: 941344383}
+  playerImage: {fileID: 1783986309}
+  targetCamera: {fileID: 749181244}
+  screenShakeRoot: {fileID: 928007538}
+  feedbackDuration: 0.35
+  cameraShakeDistance: 0.16
+  canvasShakeDistance: 12
 --- !u!222 &1783986310
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3459,7 +3499,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Oven / Craft Scroll
+  m_Text: 오븐
 --- !u!222 &2008722607
 CanvasRenderer:
   m_ObjectHideFlags: 0

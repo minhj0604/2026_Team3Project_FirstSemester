@@ -46,6 +46,13 @@ namespace Team3Project.GameSystems
         PoppingCandy
     }
 
+    public enum EnemyPose
+    {
+        Idle,
+        Attack,
+        Hit
+    }
+
     [Serializable]
     public struct MergeResource
     {
@@ -73,37 +80,41 @@ namespace Team3Project.GameSystems
             ? ResourceRole.Base
             : ResourceRole.Topping;
 
-        public string DisplayName => IsEmpty ? "Empty" : Family switch
+        public string DisplayName => IsEmpty ? string.Empty : Family switch
         {
             ResourceFamily.Sugar => Stage switch
             {
-                0 => "Cane",
-                1 => "Sugar",
-                2 => "Syrup",
-                _ => "Caramel"
+                0 => "사탕수수",
+                1 => "설탕",
+                2 => "시럽",
+                _ => "카라멜"
             },
             ResourceFamily.Dough => Stage switch
             {
-                0 => "Wheat",
-                1 => "Flour",
-                2 => "Dough",
-                _ => "Bread"
+                0 => "밀",
+                1 => "밀가루",
+                2 => "반죽",
+                _ => "빵"
             },
             ResourceFamily.Dairy => Stage switch
             {
-                0 => "Milk Drop",
-                1 => "Milk",
-                2 => "Cream",
-                _ => "Butter"
+                0 => "우유",
+                1 => "우유",
+                2 => "생크림",
+                _ => "버터"
             },
             ResourceFamily.Egg => Stage switch
             {
-                0 => "Egg",
-                1 => "Peeled Egg",
-                2 => "Meringue",
-                _ => "Custard"
+                0 => "날계란",
+                1 => "깐 계란",
+                2 => "머랭",
+                _ => "커스터드"
             },
-            _ => $"{Family} Lv.{Stage}"
+            ResourceFamily.Berry => Stage <= 1 ? "베리" : "딸기",
+            ResourceFamily.Chocolate => Stage <= 1 ? "초콜릿 칩" : "초콜릿 청크",
+            ResourceFamily.Marshmallow => Stage <= 1 ? "마시멜로" : "꽈배기 마시멜로",
+            ResourceFamily.PoppingCandy => Stage <= 1 ? "팝핑 캔디" : "별 팝핑 캔디",
+            _ => string.Empty
         };
     }
 }

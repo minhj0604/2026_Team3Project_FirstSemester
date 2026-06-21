@@ -36,14 +36,14 @@ namespace Team3Project.UI
 
             if (chapterTitleText != null)
             {
-                chapterTitleText.text = $"Chapter {currentChapter}";
+                chapterTitleText.text = $"{currentChapter}장";
             }
 
             if (chapterSummaryText != null)
             {
                 chapterSummaryText.text = isUnlocked
-                    ? $"Stage 1 > Stage 2 > Boss\nEnter Chapter {currentChapter}"
-                    : "Locked\nClear the previous chapter first.";
+                    ? $"1스테이지 > 2스테이지 > 보스\n{currentChapter}장 진입"
+                    : "잠김";
             }
 
             if (enterButton != null)

@@ -144,8 +144,8 @@ namespace Team3Project.UI
             var text = button.GetComponentInChildren<Text>(true);
             if (text != null)
             {
-                var stageName = stage == 3 ? "Boss" : $"Stage {stage}";
-                var state = stage <= clearedStage ? "CLEAR" : stage == currentStage ? "NOW" : "LOCKED";
+                var stageName = stage == 3 ? "보스" : $"{stage}스테이지";
+                var state = stage <= clearedStage ? "완료" : stage == currentStage ? "진행" : "잠김";
                 text.text = $"{stageName}\n{state}";
             }
         }

@@ -29,7 +29,7 @@ namespace Team3Project.UI
         {
             if (chapterText != null)
             {
-                chapterText.text = $"Chapter {chapterIndex}";
+                chapterText.text = $"{chapterIndex}장";
             }
 
             if (progressText != null)
@@ -44,7 +44,7 @@ namespace Team3Project.UI
             var clearedStage = Mathf.Clamp(currentStage - 1, 0, 3);
             for (var i = 1; i <= 3; i++)
             {
-                parts[i - 1] = i <= clearedStage ? "[Clear]" : i == currentStage ? "[Now]" : i == 3 ? "[Boss]" : "[Enemy]";
+                parts[i - 1] = i <= clearedStage ? "[완료]" : i == currentStage ? "[진행]" : i == 3 ? "[보스]" : "[적]";
             }
 
             return $"{parts[0]}  ->  {parts[1]}  ->  {parts[2]}";
@@ -83,9 +83,9 @@ namespace Team3Project.UI
 
         private string BuildStageLabel(int stage)
         {
-            var name = stage == 3 ? "Boss" : $"Stage {stage}";
+            var name = stage == 3 ? "보스" : $"{stage}스테이지";
             var clearedStage = Mathf.Clamp(currentStage - 1, 0, 3);
-            var state = stage <= clearedStage ? "CLEAR" : stage == currentStage ? "NOW" : "LOCKED";
+            var state = stage <= clearedStage ? "완료" : stage == currentStage ? "진행" : "잠김";
             return $"{name}\n{state}";
         }
 

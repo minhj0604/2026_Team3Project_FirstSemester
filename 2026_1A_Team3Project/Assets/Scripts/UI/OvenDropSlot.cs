@@ -78,7 +78,7 @@ namespace Team3Project.UI
 
             if (labelText != null)
             {
-                labelText.text = $"{resource.Family} Lv.{resource.Stage}";
+                labelText.text = resource.DisplayName;
             }
         }
 
@@ -107,7 +107,7 @@ namespace Team3Project.UI
             PlaceObject(item.transform);
             if (labelText != null)
             {
-                labelText.text = $"{resource.Family} Lv.{resource.Stage}";
+                labelText.text = resource.DisplayName;
             }
 
             return true;
@@ -126,7 +126,7 @@ namespace Team3Project.UI
             PlaceObject(item.transform);
             if (labelText != null)
             {
-                labelText.text = "Empty Scroll";
+                labelText.text = "빈 스크롤";
             }
 
             return true;
@@ -169,7 +169,13 @@ namespace Team3Project.UI
             placedObject = null;
             if (labelText != null)
             {
-                labelText.text = slotKind.ToString();
+                labelText.text = slotKind switch
+                {
+                    SlotKind.Base => "베이스",
+                    SlotKind.Topping => "토핑",
+                    SlotKind.Scroll => "스크롤",
+                    _ => string.Empty
+                };
             }
         }
 
