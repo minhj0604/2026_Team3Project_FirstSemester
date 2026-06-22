@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Team3Project.Dialogue;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -13,6 +14,7 @@ namespace Team3Project.GameSystems
         private const string SelectedStageKey = "Team3.SelectedStage";
         private const string ClearedStageKeyPrefix = "Team3.ClearedStage.";
         private const string UnlockedChapterKey = "Team3.UnlockedChapter";
+        private const string ChapterEntrySeenKeyPrefix = "Team3.ChapterEntrySeen.";
 
         [Header("Stage")]
         [SerializeField] private int chapterIndex = 1;
@@ -70,6 +72,7 @@ namespace Team3Project.GameSystems
         private readonly CombatantState fallbackEnemy = new();
         private Coroutine enemyPoseRoutine;
         private Coroutine turnRoutine;
+        private Coroutine stageStartRoutine;
         private int inputLockToken;
         private bool gameOverTriggered;
         private readonly List<EnemyPose> enemyPoses = new();
@@ -81,6 +84,7 @@ namespace Team3Project.GameSystems
             ChapterDiscardDecks.Remove(chapter);
             ChapterHandCards.Remove(chapter);
             PlayerPrefs.SetInt($"{ClearedStageKeyPrefix}{chapter}", 0);
+            PlayerPrefs.SetInt($"{ChapterEntrySeenKeyPrefix}{chapter}", 0);
             PlayerPrefs.SetInt(SelectedChapterKey, chapter);
             PlayerPrefs.SetInt(SelectedStageKey, 1);
             PlayerPrefs.Save();
@@ -104,6 +108,20 @@ namespace Team3Project.GameSystems
 
         public void StartStage()
         {
+            if (turnRoutine != null)
+            {
+                StopCoroutine(turnRoutine);
+                turnRoutine = null;
+            }
+
+            if (enemyPoseRoutine != null)
+            {
+                StopCoroutine(enemyPoseRoutine);
+                enemyPoseRoutine = null;
+            }
+
+            InputLocked = false;
+            inputLockToken++;
             MaxCost = baseMaxCost + Mathf.Max(0, stageIndex - 1);
             CurrentCost = 0;
             gameOverTriggered = false;
@@ -113,7 +131,42 @@ namespace Team3Project.GameSystems
             Resources.Clear();
             SetEnemyPose(EnemyPose.Idle);
             LoadChapterDeckState();
+            NotifyChanged();
+
+            if (stageStartRoutine != null)
+            {
+                StopCoroutine(stageStartRoutine);
+            }
+
+            stageStartRoutine = StartCoroutine(BeginStageAfterDialogueRoutine());
+        }
+
+        public void DebugGoToStageDelta(int delta)
+        {
+            DebugGoToStage(stageIndex + delta);
+        }
+
+        public void DebugGoToStage(int targetStage)
+        {
+            stageIndex = Mathf.Clamp(targetStage, 1, FinalStageIndex);
+            PlayerPrefs.SetInt(SelectedChapterKey, chapterIndex);
+            PlayerPrefs.SetInt(SelectedStageKey, stageIndex);
+            PlayerPrefs.Save();
+            StartStage();
+        }
+
+        private IEnumerator BeginStageAfterDialogueRoutine()
+        {
+            var isWaitingDialogue = true;
+            DialogueManager.PlayResource(DialogueKeys.StageIntro(chapterIndex, stageIndex), () => isWaitingDialogue = false);
+
+            while (isWaitingDialogue)
+            {
+                yield return null;
+            }
+
             BeginPlayerTurn();
+            stageStartRoutine = null;
         }
 
         public CombatantState GetEnemy(int index)

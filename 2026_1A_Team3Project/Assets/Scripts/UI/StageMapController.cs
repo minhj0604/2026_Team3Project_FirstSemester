@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Team3Project.UI
@@ -7,7 +6,6 @@ namespace Team3Project.UI
     public class StageMapController : MonoBehaviour
     {
         private const string SelectedChapterKey = "Team3.SelectedChapter";
-        private const string SelectedStageKey = "Team3.SelectedStage";
         private const string ClearedStageKeyPrefix = "Team3.ClearedStage.";
 
         [SerializeField] private Text chapterText;
@@ -29,7 +27,7 @@ namespace Team3Project.UI
         {
             if (chapterText != null)
             {
-                chapterText.text = $"{chapterIndex}장";
+                chapterText.text = $"{chapterIndex}\uCC55\uD130";
             }
 
             if (progressText != null)
@@ -44,7 +42,7 @@ namespace Team3Project.UI
             var clearedStage = Mathf.Clamp(currentStage - 1, 0, 3);
             for (var i = 1; i <= 3; i++)
             {
-                parts[i - 1] = i <= clearedStage ? "[완료]" : i == currentStage ? "[진행]" : i == 3 ? "[보스]" : "[적]";
+                parts[i - 1] = i <= clearedStage ? "[\uC644\uB8CC]" : i == currentStage ? "[\uC9C4\uD589]" : i == 3 ? "[\uBCF4\uC2A4]" : "[\uC7A0\uAE40]";
             }
 
             return $"{parts[0]}  ->  {parts[1]}  ->  {parts[2]}";
@@ -69,10 +67,7 @@ namespace Team3Project.UI
                     return;
                 }
 
-                PlayerPrefs.SetInt(SelectedChapterKey, chapterIndex);
-                PlayerPrefs.SetInt(SelectedStageKey, stage);
-                PlayerPrefs.Save();
-                SceneManager.LoadScene("BattleScene");
+                SceneFlowBootstrap.EnterStage(stage);
             });
 
             if (button.GetComponent<DirectButtonClicker>() == null)
@@ -83,9 +78,9 @@ namespace Team3Project.UI
 
         private string BuildStageLabel(int stage)
         {
-            var name = stage == 3 ? "보스" : $"{stage}스테이지";
+            var name = stage == 3 ? "\uBCF4\uC2A4" : $"{stage}\uC2A4\uD14C\uC774\uC9C0";
             var clearedStage = Mathf.Clamp(currentStage - 1, 0, 3);
-            var state = stage <= clearedStage ? "완료" : stage == currentStage ? "진행" : "잠김";
+            var state = stage <= clearedStage ? "\uC644\uB8CC" : stage == currentStage ? "\uC9C4\uD589" : "\uC7A0\uAE40";
             return $"{name}\n{state}";
         }
 

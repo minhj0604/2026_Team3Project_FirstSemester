@@ -1,4 +1,5 @@
 using System.IO;
+using Team3Project.Dialogue;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -14,7 +15,6 @@ namespace Team3Project.UI
     public class SceneButton : MonoBehaviour
     {
         private const string SelectedChapterKey = "Team3.SelectedChapter";
-        private const string SelectedStageKey = "Team3.SelectedStage";
         private const string ClearedStageKeyPrefix = "Team3.ClearedStage.";
 
         public enum ButtonAction
@@ -46,6 +46,11 @@ namespace Team3Project.UI
 
         private void Update()
         {
+            if (DialogueManager.HasActiveDialogue())
+            {
+                return;
+            }
+
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame)
             {
                 return;
@@ -120,10 +125,7 @@ namespace Team3Project.UI
                     return true;
                 }
 
-                PlayerPrefs.SetInt(SelectedChapterKey, chapter);
-                PlayerPrefs.SetInt(SelectedStageKey, stage);
-                PlayerPrefs.Save();
-                SceneManager.LoadScene("BattleScene");
+                SceneFlowBootstrap.EnterStage(stage);
                 return true;
             }
 
@@ -141,11 +143,12 @@ namespace Team3Project.UI
             var clearedStage = PlayerPrefs.GetInt($"{ClearedStageKeyPrefix}{chapter}", 0);
             var currentStage = GetCurrentStageForChapter(chapter);
             button.interactable = stage <= currentStage;
+
             var text = button.GetComponentInChildren<Text>(true);
             if (text != null)
             {
-                var stageName = stage == 3 ? "보스" : $"{stage}스테이지";
-                var state = stage <= clearedStage ? "완료" : stage == currentStage ? "진행" : "잠김";
+                var stageName = stage == 3 ? "\uBCF4\uC2A4" : $"{stage}\uC2A4\uD14C\uC774\uC9C0";
+                var state = stage <= clearedStage ? "\uC644\uB8CC" : stage == currentStage ? "\uC9C4\uD589" : "\uC7A0\uAE40";
                 text.text = $"{stageName}\n{state}";
             }
         }

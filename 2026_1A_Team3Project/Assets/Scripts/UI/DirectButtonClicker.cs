@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using Team3Project.Dialogue;
 
 namespace Team3Project.UI
 {
@@ -18,6 +19,11 @@ namespace Team3Project.UI
 
         private void Update()
         {
+            if (DialogueManager.HasActiveDialogue())
+            {
+                return;
+            }
+
             if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame)
             {
                 return;

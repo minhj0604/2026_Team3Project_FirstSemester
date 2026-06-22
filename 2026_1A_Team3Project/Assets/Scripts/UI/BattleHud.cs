@@ -64,6 +64,9 @@ namespace Team3Project.UI
         private int lastMergePulse = -1;
         private Coroutine turnBannerRoutine;
         private Coroutine enemyActionRoutine;
+        private Button debugPreviousStageButton;
+        private Button debugNextStageButton;
+        private Text debugStageText;
 
         private void Awake()
         {
@@ -105,6 +108,7 @@ namespace Team3Project.UI
             RegisterKnownResourceSprites();
             CacheScrollItems();
             CacheEnemyVisuals();
+            EnsureDebugStageButtons();
         }
 
         private void OnEnable()
@@ -150,6 +154,7 @@ namespace Team3Project.UI
             SetBarFill(enemyLocalHealthFill, battle.Enemy.Hp, battle.Enemy.MaxHp);
             RefreshActionPointIcons();
             RefreshButtons();
+            RefreshDebugStageButtons();
             RefreshFeedbackText();
             if (enemyIconImage != null)
             {
@@ -528,6 +533,112 @@ namespace Team3Project.UI
             {
                 enemyActionLogText = CreateOverlayText("Enemy Action Log Text", 24, new Color(1f, 0.58f, 0.52f, 1f));
             }
+        }
+
+        private void EnsureDebugStageButtons()
+        {
+            if (debugPreviousStageButton != null && debugNextStageButton != null && debugStageText != null)
+            {
+                return;
+            }
+
+            var existingRoot = GameObject.Find("Debug Stage Navigation");
+            var root = existingRoot == null
+                ? new GameObject("Debug Stage Navigation", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image))
+                : existingRoot;
+            root.transform.SetParent(transform, false);
+
+            var rootRect = root.GetComponent<RectTransform>();
+            rootRect.anchorMin = new Vector2(1f, 1f);
+            rootRect.anchorMax = new Vector2(1f, 1f);
+            rootRect.pivot = new Vector2(1f, 1f);
+            rootRect.sizeDelta = new Vector2(260f, 54f);
+            rootRect.anchoredPosition = new Vector2(-24f, -24f);
+
+            var rootImage = root.GetComponent<Image>();
+            rootImage.color = new Color(0f, 0f, 0f, 0.35f);
+
+            debugPreviousStageButton = CreateDebugButton(root.transform, "Debug Previous Stage Button", "<", new Vector2(-92f, 0f), () => battle?.DebugGoToStageDelta(-1));
+            debugStageText = CreateDebugText(root.transform, "Debug Stage Text", new Vector2(0f, 0f), new Vector2(110f, 42f), 20);
+            debugNextStageButton = CreateDebugButton(root.transform, "Debug Next Stage Button", ">", new Vector2(92f, 0f), () => battle?.DebugGoToStageDelta(1));
+        }
+
+        private void RefreshDebugStageButtons()
+        {
+            EnsureDebugStageButtons();
+            if (battle == null)
+            {
+                return;
+            }
+
+            SetText(debugStageText, $"Stage {battle.StageIndex}");
+            SetButtonInteractable(debugPreviousStageButton, battle.StageIndex > 1);
+            SetButtonInteractable(debugNextStageButton, battle.StageIndex < 3);
+        }
+
+        private static Button CreateDebugButton(Transform parent, string objectName, string label, Vector2 position, UnityEngine.Events.UnityAction action)
+        {
+            var existing = GameObject.Find(objectName);
+            var buttonObject = existing == null
+                ? new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button))
+                : existing;
+            buttonObject.transform.SetParent(parent, false);
+
+            var rect = buttonObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(52f, 42f);
+            rect.anchoredPosition = position;
+
+            var image = buttonObject.GetComponent<Image>();
+            image.color = new Color(0.86f, 0.75f, 0.55f, 0.95f);
+
+            var button = buttonObject.GetComponent<Button>();
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(action);
+
+            var text = buttonObject.GetComponentInChildren<Text>(true);
+            if (text == null)
+            {
+                text = CreateDebugText(buttonObject.transform, "Label", Vector2.zero, new Vector2(46f, 36f), 24);
+            }
+
+            text.text = label;
+
+            if (buttonObject.GetComponent<DirectButtonClicker>() == null)
+            {
+                buttonObject.AddComponent<DirectButtonClicker>();
+            }
+
+            return button;
+        }
+
+        private static Text CreateDebugText(Transform parent, string objectName, Vector2 position, Vector2 size, int fontSize)
+        {
+            var textObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            textObject.transform.SetParent(parent, false);
+
+            var rect = textObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = size;
+            rect.anchoredPosition = position;
+
+            var text = textObject.GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (text.font == null)
+            {
+                text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            }
+
+            text.fontSize = fontSize;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = Color.white;
+            text.raycastTarget = false;
+            return text;
         }
 
         private Text CreateOverlayText(string objectName, int fontSize, Color color)

@@ -19,8 +19,6 @@ namespace Team3Project.UI
 
         private void Awake()
         {
-            previousButton?.onClick.AddListener(() => ChangeChapter(-1));
-            nextButton?.onClick.AddListener(() => ChangeChapter(1));
             Refresh();
         }
 
@@ -36,14 +34,14 @@ namespace Team3Project.UI
 
             if (chapterTitleText != null)
             {
-                chapterTitleText.text = $"{currentChapter}장";
+                chapterTitleText.text = $"{currentChapter}\uCC55\uD130";
             }
 
             if (chapterSummaryText != null)
             {
                 chapterSummaryText.text = isUnlocked
-                    ? $"1스테이지 > 2스테이지 > 보스\n{currentChapter}장 진입"
-                    : "잠김";
+                    ? $"1\uC2A4\uD14C\uC774\uC9C0 > 2\uC2A4\uD14C\uC774\uC9C0 > \uBCF4\uC2A4\n{currentChapter}\uCC55\uD130 \uC9C4\uC785"
+                    : "\uC7A0\uAE40";
             }
 
             if (enterButton != null)

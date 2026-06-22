@@ -1,9 +1,10 @@
 using System.Collections;
 using System.IO;
+using Team3Project.Dialogue;
+using Team3Project.GameSystems;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using Team3Project.GameSystems;
 
 namespace Team3Project.UI
 {
@@ -13,6 +14,7 @@ namespace Team3Project.UI
         private const string SelectedStageKey = "Team3.SelectedStage";
         private const string ClearedStageKeyPrefix = "Team3.ClearedStage.";
         private const string UnlockedChapterKey = "Team3.UnlockedChapter";
+        private const string ChapterEntrySeenKeyPrefix = "Team3.ChapterEntrySeen.";
 
         private static int selectedChapter = 1;
         private static GameObject titleReturnWarning;
@@ -49,7 +51,6 @@ namespace Team3Project.UI
         private static void SetupChapterSelectScene()
         {
             WireButton("Enter Chapter Button", EnterSelectedChapter);
-
             WireButton("Previous Chapter Arrow", () => ChangeChapter(-1));
             WireButton("Next Chapter Arrow", () => ChangeChapter(1));
             WireButton("Back Button", () => SceneManager.LoadScene("TitleScene"));
@@ -71,13 +72,45 @@ namespace Team3Project.UI
             }
 
             BattleController.ResetChapterRun(selectedChapter);
+            PlayerPrefs.SetInt($"{ChapterEntrySeenKeyPrefix}{selectedChapter}", 0);
+            PlayerPrefs.Save();
             SceneManager.LoadScene("StageMapScene");
+        }
+
+        public static void EnterStage(int stage)
+        {
+            selectedChapter = PlayerPrefs.GetInt(SelectedChapterKey, selectedChapter);
+            if (stage > GetCurrentStageForChapter(selectedChapter))
+            {
+                return;
+            }
+
+            PlayerPrefs.SetInt(SelectedChapterKey, selectedChapter);
+            PlayerPrefs.SetInt(SelectedStageKey, stage);
+
+            var entrySeenKey = $"{ChapterEntrySeenKeyPrefix}{selectedChapter}";
+            var shouldPlayChapterEntry = PlayerPrefs.GetInt(entrySeenKey, 0) == 0;
+            if (shouldPlayChapterEntry)
+            {
+                PlayerPrefs.SetInt(entrySeenKey, 1);
+            }
+
+            PlayerPrefs.Save();
+
+            if (shouldPlayChapterEntry)
+            {
+                DialogueManager.PlayResource(DialogueKeys.ChapterEntry(selectedChapter), () => SceneManager.LoadScene("BattleScene"));
+                return;
+            }
+
+            SceneManager.LoadScene("BattleScene");
         }
 
         public static void RefreshChapterSelect()
         {
-            SetText("Title Text", $"{selectedChapter}장");
+            SetText("Title Text", $"{selectedChapter}\uCC55\uD130");
             RefreshChapterBossImage(selectedChapter);
+
             var enter = FindButton("Enter Chapter Button");
             if (enter != null)
             {
@@ -122,7 +155,8 @@ namespace Team3Project.UI
 
         private static void SetupStageMapScene()
         {
-            SetText("Title Text", $"{selectedChapter}장 스테이지");
+            selectedChapter = PlayerPrefs.GetInt(SelectedChapterKey, selectedChapter);
+            SetText("Title Text", $"{selectedChapter}\uCC55\uD130 \uC2A4\uD14C\uC774\uC9C0");
             WireStageButton("Stage 1 Node", 1);
             WireStageButton("Stage 2 Node", 2);
             WireStageButton("Boss Stage Node", 3);
@@ -165,14 +199,15 @@ namespace Team3Project.UI
             overlayRect.anchorMax = Vector2.one;
             overlayRect.offsetMin = Vector2.zero;
             overlayRect.offsetMax = Vector2.zero;
+
             var overlayImage = overlay.GetComponent<Image>();
-            overlayImage.sprite = LoadUiSprite("경고창 화면.png");
+            overlayImage.sprite = LoadUiSprite("\uACBD\uACE0\uCC3D \uD654\uBA74.png");
             overlayImage.color = Color.white;
             overlayImage.raycastTarget = true;
             overlayImage.preserveAspect = false;
 
-            CreateDialogButton(overlay.transform, "Yes Button", "예 버튼.png", new Vector2(-340f, -280f), () => SceneManager.LoadScene("TitleScene"));
-            CreateDialogButton(overlay.transform, "No Button", "아니요 버튼.png", new Vector2(340f, -280f), () => overlay.SetActive(false));
+            CreateDialogButton(overlay.transform, "Yes Button", "\uC608 \uBC84\uD2BC.png", new Vector2(-340f, -280f), () => SceneManager.LoadScene("TitleScene"));
+            CreateDialogButton(overlay.transform, "No Button", "\uC544\uB2C8\uC694 \uBC84\uD2BC.png", new Vector2(340f, -280f), () => overlay.SetActive(false));
 
             overlay.SetActive(false);
             titleReturnWarning = overlay;
@@ -246,18 +281,7 @@ namespace Team3Project.UI
             button.interactable = stage <= unlockedStage;
             SetButtonLabel(button, GetStageLabel(stage, clearedStage, unlockedStage));
             button.onClick.RemoveAllListeners();
-            button.onClick.AddListener(() =>
-            {
-                if (stage > GetCurrentStageForChapter(selectedChapter))
-                {
-                    return;
-                }
-
-                PlayerPrefs.SetInt(SelectedChapterKey, selectedChapter);
-                PlayerPrefs.SetInt(SelectedStageKey, stage);
-                PlayerPrefs.Save();
-                SceneManager.LoadScene("BattleScene");
-            });
+            button.onClick.AddListener(() => EnterStage(stage));
 
             if (button.GetComponent<DirectButtonClicker>() == null)
             {
@@ -267,8 +291,8 @@ namespace Team3Project.UI
 
         private static string GetStageLabel(int stage, int clearedStage, int unlockedStage)
         {
-            var name = stage == 3 ? "보스" : $"{stage}스테이지";
-            var state = stage <= clearedStage ? "완료" : stage == unlockedStage ? "진행" : "잠김";
+            var name = stage == 3 ? "\uBCF4\uC2A4" : $"{stage}\uC2A4\uD14C\uC774\uC9C0";
+            var state = stage <= clearedStage ? "\uC644\uB8CC" : stage == unlockedStage ? "\uC9C4\uD589" : "\uC7A0\uAE40";
             return $"{name}\n{state}";
         }
 
