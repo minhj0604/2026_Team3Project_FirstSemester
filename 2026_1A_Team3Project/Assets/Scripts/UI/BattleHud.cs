@@ -1,4 +1,5 @@
 using Team3Project.GameSystems;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -51,8 +52,18 @@ namespace Team3Project.UI
         private readonly List<Image> actionPointIcons = new();
         private DragMergeItem resourceTemplate;
         private DragScrollItem[] scrollItems = new DragScrollItem[0];
+        private readonly List<EnemyBattleSpriteController> enemyVisuals = new();
+        private EnemyBattleSpriteController enemyVisualTemplate;
+        private Vector2 enemyVisualBasePosition;
         private RectTransform resourceStorage;
         private Sprite fallbackEnemyIconSprite;
+        private Text turnBannerText;
+        private Text enemyActionLogText;
+        private int lastTurnBannerPulse = -1;
+        private int lastEnemyActionPulse = -1;
+        private int lastMergePulse = -1;
+        private Coroutine turnBannerRoutine;
+        private Coroutine enemyActionRoutine;
 
         private void Awake()
         {
@@ -89,9 +100,11 @@ namespace Team3Project.UI
             playButton?.onClick.AddListener(battle.PlayFirstScroll);
             endTurnButton?.onClick.AddListener(battle.EndTurn);
             resourceStorage = FindRectTransform("Resource Storage");
+            EnsureFeedbackTexts();
             CacheResourceItems();
             RegisterKnownResourceSprites();
             CacheScrollItems();
+            CacheEnemyVisuals();
         }
 
         private void OnEnable()
@@ -136,6 +149,8 @@ namespace Team3Project.UI
             SetBarFill(enemyHealthFill, battle.Enemy.Hp, battle.Enemy.MaxHp);
             SetBarFill(enemyLocalHealthFill, battle.Enemy.Hp, battle.Enemy.MaxHp);
             RefreshActionPointIcons();
+            RefreshButtons();
+            RefreshFeedbackText();
             if (enemyIconImage != null)
             {
                 var profileSprite = battle.EnemyPose == EnemyPose.Hit && enemyHitProfileSprite != null
@@ -152,6 +167,7 @@ namespace Team3Project.UI
             }
 
             SetButtonText(endTurnButton, battle.Phase == BattlePhase.StageClear ? "다음" : "턴 종료");
+            RefreshEnemyVisuals();
             RefreshResourceItems();
             RefreshScrollItems();
         }
@@ -230,6 +246,16 @@ namespace Team3Project.UI
             {
                 resourceSlots[i]?.ClearInventorySlot();
             }
+
+            if (battle.MergePulse != lastMergePulse)
+            {
+                lastMergePulse = battle.MergePulse;
+                var index = battle.LastMergedResourceIndex;
+                if (index >= 0 && index < resourceSlots.Count)
+                {
+                    resourceSlots[index]?.PlayMergePop();
+                }
+            }
         }
 
         private void EnsureResourceSlotCapacity(int requiredCount)
@@ -297,6 +323,85 @@ namespace Team3Project.UI
                 .ToArray();
         }
 
+        private void CacheEnemyVisuals()
+        {
+            if (enemyVisualTemplate == null)
+            {
+                enemyVisualTemplate = FindFirstObjectByType<EnemyBattleSpriteController>(FindObjectsInactive.Include);
+            }
+
+            if (enemyVisualTemplate == null)
+            {
+                return;
+            }
+
+            if (enemyVisualTemplate.TryGetComponent<RectTransform>(out var rect))
+            {
+                enemyVisualBasePosition = rect.anchoredPosition;
+            }
+
+            enemyVisuals.Clear();
+            enemyVisuals.Add(enemyVisualTemplate);
+        }
+
+        private void RefreshEnemyVisuals()
+        {
+            if (battle == null)
+            {
+                return;
+            }
+
+            if (enemyVisualTemplate == null)
+            {
+                CacheEnemyVisuals();
+            }
+
+            if (enemyVisualTemplate == null)
+            {
+                return;
+            }
+
+            EnsureEnemyVisualCapacity(battle.EnemyCount);
+            var spacing = battle.EnemyCount <= 1 ? 0f : 260f;
+            var startX = -spacing * (battle.EnemyCount - 1) * 0.5f;
+            for (var i = 0; i < enemyVisuals.Count; i++)
+            {
+                var visual = enemyVisuals[i];
+                if (visual == null)
+                {
+                    continue;
+                }
+
+                var active = i < battle.EnemyCount && !battle.GetEnemy(i).IsDead;
+                visual.gameObject.SetActive(active);
+                if (!active)
+                {
+                    continue;
+                }
+
+                visual.Configure(battle, i);
+                if (visual.TryGetComponent<RectTransform>(out var rect))
+                {
+                    rect.anchoredPosition = enemyVisualBasePosition + new Vector2(startX + spacing * i, 0f);
+                }
+            }
+        }
+
+        private void EnsureEnemyVisualCapacity(int requiredCount)
+        {
+            if (enemyVisualTemplate == null)
+            {
+                return;
+            }
+
+            while (enemyVisuals.Count < requiredCount)
+            {
+                var clone = Instantiate(enemyVisualTemplate, enemyVisualTemplate.transform.parent);
+                clone.name = $"Enemy Character {enemyVisuals.Count + 1}";
+                enemyVisuals.Add(clone);
+            }
+        }
+
         private void RefreshScrollItems()
         {
             if (scrollItems.Length == 0)
@@ -307,7 +412,7 @@ namespace Team3Project.UI
             for (var i = 0; i < scrollItems.Length; i++)
             {
                 var item = scrollItems[i];
-                if (item == null || item.IsDragging)
+                if (item == null || item.IsDragging || item.IsSelectedForPlay)
                 {
                     continue;
                 }
@@ -356,6 +461,158 @@ namespace Team3Project.UI
             {
                 text.text = value;
             }
+        }
+
+        private void RefreshButtons()
+        {
+            var canAct = battle != null && !battle.InputLocked && battle.Phase == BattlePhase.PlayerTurn;
+            SetButtonInteractable(mergeSugarButton, canAct);
+            SetButtonInteractable(craftButton, canAct);
+            SetButtonInteractable(playButton, canAct);
+            SetButtonInteractable(endTurnButton, battle != null && !battle.InputLocked && (battle.Phase == BattlePhase.PlayerTurn || battle.Phase == BattlePhase.StageClear));
+        }
+
+        private static void SetButtonInteractable(Button button, bool value)
+        {
+            if (button != null)
+            {
+                button.interactable = value;
+            }
+        }
+
+        private void RefreshFeedbackText()
+        {
+            EnsureFeedbackTexts();
+            if (battle == null)
+            {
+                return;
+            }
+
+            if (battle.TurnBannerPulse != lastTurnBannerPulse)
+            {
+                lastTurnBannerPulse = battle.TurnBannerPulse;
+                if (!string.IsNullOrEmpty(battle.TurnBannerText))
+                {
+                    if (turnBannerRoutine != null)
+                    {
+                        StopCoroutine(turnBannerRoutine);
+                    }
+
+                    turnBannerRoutine = StartCoroutine(SlideTextRoutine(turnBannerText, battle.TurnBannerText, 1.2f, 0f));
+                }
+            }
+
+            if (battle.EnemyActionPulse != lastEnemyActionPulse)
+            {
+                lastEnemyActionPulse = battle.EnemyActionPulse;
+                if (!string.IsNullOrEmpty(battle.EnemyActionLog))
+                {
+                    if (enemyActionRoutine != null)
+                    {
+                        StopCoroutine(enemyActionRoutine);
+                    }
+
+                    enemyActionRoutine = StartCoroutine(FadeTextRoutine(enemyActionLogText, battle.EnemyActionLog, 1.35f, 140f));
+                }
+            }
+        }
+
+        private void EnsureFeedbackTexts()
+        {
+            if (turnBannerText == null)
+            {
+                turnBannerText = CreateOverlayText("Turn Banner Text", 42, new Color(1f, 0.9f, 0.55f, 1f));
+            }
+
+            if (enemyActionLogText == null)
+            {
+                enemyActionLogText = CreateOverlayText("Enemy Action Log Text", 24, new Color(1f, 0.58f, 0.52f, 1f));
+            }
+        }
+
+        private Text CreateOverlayText(string objectName, int fontSize, Color color)
+        {
+            var existing = FindText(objectName);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var textObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text), typeof(Outline));
+            textObject.transform.SetParent(transform, false);
+            var rect = textObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(620f, 80f);
+            rect.anchoredPosition = new Vector2(0f, 0f);
+
+            var text = textObject.GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (text.font == null)
+            {
+                text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            }
+
+            text.fontSize = fontSize;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.raycastTarget = false;
+            text.color = new Color(color.r, color.g, color.b, 0f);
+
+            var outline = textObject.GetComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.8f);
+            outline.effectDistance = new Vector2(2f, -2f);
+            return text;
+        }
+
+        private IEnumerator SlideTextRoutine(Text text, string value, float duration, float y)
+        {
+            if (text == null || !text.TryGetComponent<RectTransform>(out var rect))
+            {
+                yield break;
+            }
+
+            text.text = value;
+            text.transform.SetAsLastSibling();
+            var baseColor = text.color;
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                var x = Mathf.Lerp(-480f, 480f, Mathf.SmoothStep(0f, 1f, t));
+                rect.anchoredPosition = new Vector2(x, y);
+                var alpha = t < 0.2f ? t / 0.2f : t > 0.78f ? (1f - t) / 0.22f : 1f;
+                text.color = new Color(baseColor.r, baseColor.g, baseColor.b, Mathf.Clamp01(alpha));
+                yield return null;
+            }
+
+            text.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
+        }
+
+        private IEnumerator FadeTextRoutine(Text text, string value, float duration, float y)
+        {
+            if (text == null || !text.TryGetComponent<RectTransform>(out var rect))
+            {
+                yield break;
+            }
+
+            text.text = value;
+            text.transform.SetAsLastSibling();
+            rect.anchoredPosition = new Vector2(0f, y);
+            var baseColor = text.color;
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                var alpha = t < 0.18f ? t / 0.18f : t > 0.72f ? (1f - t) / 0.28f : 1f;
+                text.color = new Color(baseColor.r, baseColor.g, baseColor.b, Mathf.Clamp01(alpha));
+                yield return null;
+            }
+
+            text.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
         }
 
         private void RefreshPlayerStatusUi()

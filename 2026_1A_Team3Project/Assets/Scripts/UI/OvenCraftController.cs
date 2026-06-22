@@ -1,5 +1,8 @@
+using System.Collections;
+using System.Collections.Generic;
 using Team3Project.GameSystems;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Team3Project.UI
@@ -21,6 +24,14 @@ namespace Team3Project.UI
         private Transform directBaseAnchor;
         private Transform directToppingAnchor;
         private Transform directScrollAnchor;
+        private RectTransform ovenLid;
+        private Vector3 closedLidScale = Vector3.one;
+        private Vector2 closedLidPosition;
+        private Vector2 openLidPosition;
+        private readonly List<RectTransform> ovenAnimationTargets = new();
+        private readonly Dictionary<RectTransform, Vector3> ovenOriginalScales = new();
+        private Coroutine ovenSquishRoutine;
+        private bool isBaking;
 
         public void Configure(OvenDropSlot baseDropSlot, OvenDropSlot toppingDropSlot, Text resultText)
         {
@@ -45,6 +56,23 @@ namespace Team3Project.UI
                     craftedScrollText = resultObject.GetComponent<Text>();
                 }
             }
+
+            var lidObject = GameObject.Find("Oven Lid Visual");
+            ovenLid = lidObject == null ? null : lidObject.GetComponent<RectTransform>();
+            if (ovenLid != null)
+            {
+                closedLidScale = ovenLid.localScale;
+                closedLidPosition = ovenLid.anchoredPosition;
+                openLidPosition = closedLidPosition + new Vector2(0f, -86f);
+                ovenLid.pivot = new Vector2(0.5f, 0.5f);
+            }
+
+            CacheOvenAnimationTargets();
+        }
+
+        private void Update()
+        {
+            AnimateLid();
         }
 
         public bool ContainsScreenPoint(Vector2 screenPosition)
@@ -57,6 +85,12 @@ namespace Team3Project.UI
 
         public bool TryPlaceResource(DragMergeItem item)
         {
+            var battle = FindFirstObjectByType<BattleController>();
+            if (battle != null && (battle.InputLocked || battle.Phase != BattlePhase.PlayerTurn))
+            {
+                return false;
+            }
+
             if (item == null)
             {
                 return false;
@@ -100,6 +134,12 @@ namespace Team3Project.UI
 
         public bool TryPlaceScroll(DragScrollItem item)
         {
+            var battle = FindFirstObjectByType<BattleController>();
+            if (battle != null && (battle.InputLocked || battle.Phase != BattlePhase.PlayerTurn))
+            {
+                return false;
+            }
+
             if (item == null || !item.IsEmptyScroll)
             {
                 return false;
@@ -107,6 +147,7 @@ namespace Team3Project.UI
 
             directScrollItem = item;
             PlaceInOven(item.transform, null);
+            SetLidOpen(true);
             TryAutoBake();
             return true;
         }
@@ -158,7 +199,7 @@ namespace Team3Project.UI
                 return;
             }
 
-            scrollItem.SetCraftedCard(card);
+            scrollItem.ReturnToOriginalSlot();
             if (craftedScrollText != null)
             {
                 craftedScrollText.text = $"{card.DisplayName}\n비용 {card.Cost} / 위력 {card.Power}";
@@ -176,22 +217,34 @@ namespace Team3Project.UI
                 return;
             }
 
-            if (directBaseResource.HasValue && directToppingResource.HasValue && directScrollItem != null)
+            if (!isBaking && directBaseResource.HasValue && directToppingResource.HasValue && directScrollItem != null)
             {
-                BakeDirect();
+                StartCoroutine(BakeDirectAfterSquish());
             }
+        }
+
+        private IEnumerator BakeDirectAfterSquish()
+        {
+            isBaking = true;
+            SetPlacedObjectsVisible(false);
+            PlayOvenSquish();
+            yield return new WaitForSeconds(0.78f);
+            BakeDirect();
+            isBaking = false;
         }
 
         private void BakeDirect()
         {
             if (!directBaseResource.HasValue)
             {
+                SetPlacedObjectsVisible(true);
                 SetResult("베이스 필요");
                 return;
             }
 
             if (directScrollItem == null)
             {
+                SetPlacedObjectsVisible(true);
                 SetResult("빈 스크롤 필요");
                 return;
             }
@@ -205,6 +258,7 @@ namespace Team3Project.UI
                     directToppingIndex,
                     out var card))
             {
+                SetPlacedObjectsVisible(true);
                 SetResult("제작 불가");
                 directBaseItem?.ReturnToStart();
                 directToppingItem?.ReturnToStart();
@@ -213,11 +267,11 @@ namespace Team3Project.UI
                 return;
             }
 
-            directScrollItem.SetCraftedCard(card);
             directScrollItem.ReturnToOriginalSlot();
             directBaseItem?.ConsumeFromOven();
             directToppingItem?.ConsumeFromOven();
             SetResult($"{card.DisplayName}\n비용 {card.Cost} / 위력 {card.Power}");
+            SetLidOpen(false);
 
             ClearDirectSlots();
         }
@@ -236,7 +290,13 @@ namespace Team3Project.UI
         private void PlaceInOven(Transform target, ResourceRole? role)
         {
             var anchor = GetPlacementAnchor(role);
+            if (anchor == directScrollAnchor)
+            {
+                anchor.SetAsLastSibling();
+            }
+
             target.SetParent(anchor, false);
+            target.SetAsLastSibling();
             if (target.TryGetComponent<RectTransform>(out var rect))
             {
                 rect.anchoredPosition = anchor == transform ? GetFallbackPosition(role) : Vector2.zero;
@@ -249,7 +309,7 @@ namespace Team3Project.UI
             {
                 ResourceRole.Base => new Vector2(-72f, 18f),
                 ResourceRole.Topping => new Vector2(72f, 18f),
-                _ => new Vector2(0f, -54f)
+                _ => new Vector2(0f, 0f)
             };
         }
 
@@ -265,7 +325,40 @@ namespace Team3Project.UI
                 return toppingSlot != null ? toppingSlot.transform : FindAnchor("Oven Topping Slot Visual", ref directToppingAnchor);
             }
 
-            return scrollSlot != null ? scrollSlot.transform : FindAnchor("Oven Lid Visual", ref directScrollAnchor);
+            return scrollSlot != null ? scrollSlot.transform : GetScrollAnchor();
+        }
+
+        private Transform GetScrollAnchor()
+        {
+            if (directScrollAnchor != null)
+            {
+                return directScrollAnchor;
+            }
+
+            var anchorObject = new GameObject("Oven Scroll Anchor", typeof(RectTransform));
+            var anchorRect = anchorObject.GetComponent<RectTransform>();
+            var parent = ovenLid == null || ovenLid.parent == null ? transform : ovenLid.parent;
+            anchorRect.SetParent(parent, false);
+            if (ovenLid != null)
+            {
+                anchorRect.anchorMin = ovenLid.anchorMin;
+                anchorRect.anchorMax = ovenLid.anchorMax;
+                anchorRect.pivot = ovenLid.pivot;
+                anchorRect.anchoredPosition = closedLidPosition + new Vector2(0f, -12f);
+                anchorRect.sizeDelta = ovenLid.sizeDelta;
+            }
+            else if (transform is RectTransform rect)
+            {
+                anchorRect.anchorMin = rect.anchorMin;
+                anchorRect.anchorMax = rect.anchorMax;
+                anchorRect.pivot = rect.pivot;
+                anchorRect.anchoredPosition = rect.anchoredPosition;
+                anchorRect.sizeDelta = rect.sizeDelta;
+            }
+
+            directScrollAnchor = anchorRect;
+            directScrollAnchor.SetAsLastSibling();
+            return directScrollAnchor;
         }
 
         private Transform FindAnchor(string objectName, ref Transform cachedAnchor)
@@ -285,6 +378,140 @@ namespace Team3Project.UI
             if (craftedScrollText != null)
             {
                 craftedScrollText.text = value;
+            }
+        }
+
+        private void AnimateLid()
+        {
+            if (ovenLid == null)
+            {
+                return;
+            }
+
+            var shouldOpen = directScrollItem != null || IsEmptyScrollDraggingOver();
+            var targetPosition = shouldOpen ? openLidPosition : closedLidPosition;
+            ovenLid.anchoredPosition = Vector2.Lerp(ovenLid.anchoredPosition, targetPosition, Time.deltaTime * 9f);
+            ovenLid.localScale = Vector3.Lerp(ovenLid.localScale, closedLidScale, Time.deltaTime * 9f);
+        }
+
+        private bool IsEmptyScrollDraggingOver()
+        {
+            if (Mouse.current == null)
+            {
+                return false;
+            }
+
+            var mousePosition = Mouse.current.position.ReadValue();
+            foreach (var scroll in FindObjectsOfType<DragScrollItem>())
+            {
+                if (scroll != null && scroll.IsDragging && scroll.IsEmptyScroll && ContainsScreenPoint(mousePosition))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void SetLidOpen(bool open)
+        {
+            if (ovenLid != null)
+            {
+                ovenLid.anchoredPosition = open ? openLidPosition : closedLidPosition;
+                ovenLid.localScale = closedLidScale;
+            }
+        }
+
+        private void PlayOvenSquish()
+        {
+            if (ovenSquishRoutine != null)
+            {
+                StopCoroutine(ovenSquishRoutine);
+            }
+
+            ovenSquishRoutine = StartCoroutine(OvenSquishRoutine());
+        }
+
+        private IEnumerator OvenSquishRoutine()
+        {
+            if (ovenAnimationTargets.Count == 0)
+            {
+                CacheOvenAnimationTargets();
+            }
+
+            const float duration = 0.75f;
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                var wave = Mathf.Sin(t * Mathf.PI * 2f) * (1f - t);
+                foreach (var target in ovenAnimationTargets)
+                {
+                    if (target == null || !ovenOriginalScales.TryGetValue(target, out var originalScale))
+                    {
+                        continue;
+                    }
+
+                    target.localScale = new Vector3(originalScale.x * (1f + wave * 0.16f), originalScale.y * (1f - wave * 0.12f), originalScale.z);
+                }
+
+                yield return null;
+            }
+
+            foreach (var target in ovenAnimationTargets)
+            {
+                if (target != null && ovenOriginalScales.TryGetValue(target, out var originalScale))
+                {
+                    target.localScale = originalScale;
+                }
+            }
+
+            ovenSquishRoutine = null;
+        }
+
+        private void SetPlacedObjectsVisible(bool visible)
+        {
+            SetObjectVisible(directBaseItem, visible);
+            SetObjectVisible(directToppingItem, visible);
+            SetObjectVisible(directScrollItem, visible);
+        }
+
+        private static void SetObjectVisible(Component component, bool visible)
+        {
+            if (component == null)
+            {
+                return;
+            }
+
+            var canvasGroup = component.GetComponent<CanvasGroup>();
+            if (canvasGroup == null)
+            {
+                canvasGroup = component.gameObject.AddComponent<CanvasGroup>();
+            }
+
+            canvasGroup.alpha = visible ? 1f : 0f;
+            canvasGroup.blocksRaycasts = visible;
+        }
+
+        private void CacheOvenAnimationTargets()
+        {
+            ovenAnimationTargets.Clear();
+            ovenOriginalScales.Clear();
+            foreach (var rect in FindObjectsByType<RectTransform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (rect == null || rect.transform == transform || rect.name == "Oven Craft Area" || rect.name == "Oven Scroll Anchor")
+                {
+                    continue;
+                }
+
+                if (!rect.name.StartsWith("Oven"))
+                {
+                    continue;
+                }
+
+                ovenAnimationTargets.Add(rect);
+                ovenOriginalScales[rect] = rect.localScale;
             }
         }
     }

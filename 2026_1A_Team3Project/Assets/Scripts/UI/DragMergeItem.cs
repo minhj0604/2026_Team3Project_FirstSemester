@@ -1,3 +1,4 @@
+using System.Collections;
 using Team3Project.GameSystems;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -17,6 +18,7 @@ namespace Team3Project.UI
         private Vector2 startPosition;
         private bool isDragging;
         private Text labelText;
+        private Coroutine popRoutine;
         private const string LabelObjectName = "Resource Level Label";
 
         public MergeResource Resource => new(family, stage);
@@ -93,6 +95,12 @@ namespace Team3Project.UI
         private void BeginDrag()
         {
             if (isDragging)
+            {
+                return;
+            }
+
+            var battle = Object.FindFirstObjectByType<BattleController>();
+            if (battle != null && (battle.InputLocked || battle.Phase != BattlePhase.PlayerTurn))
             {
                 return;
             }
@@ -302,6 +310,42 @@ namespace Team3Project.UI
 
             outline.effectColor = new Color(1f, 1f, 1f, 0.85f);
             outline.effectDistance = new Vector2(1f, -1f);
+        }
+
+        public void PlayMergePop()
+        {
+            if (!gameObject.activeInHierarchy)
+            {
+                return;
+            }
+
+            if (popRoutine != null)
+            {
+                StopCoroutine(popRoutine);
+            }
+
+            popRoutine = StartCoroutine(MergePopRoutine());
+        }
+
+        private IEnumerator MergePopRoutine()
+        {
+            var originalScale = transform.localScale;
+            const float duration = 0.32f;
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                var scale = t < 0.35f
+                    ? Mathf.Lerp(0.78f, 1.22f, t / 0.35f)
+                    : Mathf.Lerp(1.22f, 1f, (t - 0.35f) / 0.65f);
+
+                transform.localScale = originalScale * scale;
+                yield return null;
+            }
+
+            transform.localScale = originalScale;
+            popRoutine = null;
         }
 
         private static Color GetFallbackColor(ResourceFamily resourceFamily)

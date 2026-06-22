@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -22,9 +23,17 @@ namespace Team3Project.UI
         private Image toppingIcon;
         private Outline scrollOutline;
         private int boundCardId = -1;
+        private bool selectedForPlay;
+        private Coroutine motionRoutine;
+        private float lastCraftedClickTime = -10f;
+        private Transform homeParent;
+        private Vector2 homePosition;
+        private bool hasHomeSlot;
+        private static DragScrollItem selectedItem;
 
         public bool IsEmptyScroll => !hasCraftedCard;
         public bool IsDragging => isDragging;
+        public bool IsSelectedForPlay => selectedForPlay;
         public int HandIndex { get; private set; } = -1;
         public int BoundCardId => boundCardId;
 
@@ -37,6 +46,14 @@ namespace Team3Project.UI
         {
             CacheComponents();
             isDragging = false;
+        }
+
+        private void OnDisable()
+        {
+            if (selectedItem == this)
+            {
+                selectedItem = null;
+            }
         }
 
         private void CacheComponents()
@@ -53,6 +70,8 @@ namespace Team3Project.UI
             {
                 cardText = GetComponentInChildren<Text>(true);
             }
+
+            RememberHomeSlot();
         }
 
         private void Update()
@@ -104,7 +123,7 @@ namespace Team3Project.UI
         {
             if (hasCraftedCard)
             {
-                TryPlayCraftedCard();
+                HandleCraftedCardClick();
             }
         }
 
@@ -126,8 +145,14 @@ namespace Team3Project.UI
                 }
             }
 
-            transform.SetParent(originalParent, false);
-            rectTransform.anchoredPosition = originalPosition;
+            if (originalParent != null)
+            {
+                transform.SetParent(originalParent, false);
+                rectTransform.anchoredPosition = originalPosition;
+                return;
+            }
+
+            RestoreHomePlacement(false);
         }
 
         private void BeginDrag(Vector2 screenPosition)
@@ -147,10 +172,21 @@ namespace Team3Project.UI
                 return;
             }
 
-            originalParent = transform.parent;
-            originalPosition = rectTransform.anchoredPosition;
+            var battle = Object.FindFirstObjectByType<BattleController>();
+            if (battle != null && (battle.InputLocked || battle.Phase != BattlePhase.PlayerTurn))
+            {
+                return;
+            }
+
+            if (!selectedForPlay)
+            {
+                originalParent = transform.parent;
+                originalPosition = rectTransform.anchoredPosition;
+            }
+
             dragStartMousePosition = screenPosition;
             transform.SetParent(canvas.transform, true);
+            transform.SetAsLastSibling();
             canvasGroup.blocksRaycasts = false;
             isDragging = true;
         }
@@ -164,9 +200,16 @@ namespace Team3Project.UI
 
             canvasGroup.blocksRaycasts = true;
             var moved = Vector2.Distance(dragStartMousePosition, screenPosition);
+            if (selectedForPlay && moved >= 12f && IsDroppedBackToHand(screenPosition))
+            {
+                CancelSelection();
+                isDragging = false;
+                return;
+            }
+
             if (hasCraftedCard && moved < 12f)
             {
-                TryPlayCraftedCard();
+                HandleCraftedCardClick();
             }
             else
             {
@@ -223,31 +266,200 @@ namespace Team3Project.UI
 
         public void ReturnToOriginalSlot()
         {
+            StopMotion();
+            selectedForPlay = false;
+            if (selectedItem == this)
+            {
+                selectedItem = null;
+            }
+
+            isDragging = false;
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = 1f;
+                canvasGroup.blocksRaycasts = true;
+            }
+
             if (originalParent != null)
             {
                 transform.SetParent(originalParent, false);
                 rectTransform.anchoredPosition = originalPosition;
+                rectTransform.localScale = Vector3.one;
+                return;
+            }
+
+            RestoreHomePlacement(false);
+        }
+
+        public void CancelSelection()
+        {
+            StopMotion();
+            selectedForPlay = false;
+            if (selectedItem == this)
+            {
+                selectedItem = null;
+            }
+
+            originalParent = null;
+            isDragging = false;
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = 1f;
+                canvasGroup.blocksRaycasts = true;
+            }
+
+            RestoreHomePlacement(false);
+        }
+
+        private void RememberHomeSlot()
+        {
+            if (hasHomeSlot || rectTransform == null || transform.parent == null)
+            {
+                return;
+            }
+
+            homeParent = transform.parent;
+            homePosition = rectTransform.anchoredPosition;
+            hasHomeSlot = true;
+        }
+
+        private void RestoreHomePlacement(bool stopMotion)
+        {
+            if (stopMotion)
+            {
+                StopMotion();
+            }
+
+            if (!hasHomeSlot || rectTransform == null || homeParent == null)
+            {
+                return;
+            }
+
+            if (transform.parent != homeParent)
+            {
+                transform.SetParent(homeParent, false);
+            }
+
+            rectTransform.anchoredPosition = homePosition;
+            rectTransform.localScale = Vector3.one;
+        }
+
+        private void StopMotion()
+        {
+            if (motionRoutine != null)
+            {
+                StopCoroutine(motionRoutine);
+                motionRoutine = null;
             }
         }
 
-        private void TryPlayCraftedCard()
+        private void HandleCraftedCardClick()
+        {
+            if (Time.unscaledTime - lastCraftedClickTime < 0.08f)
+            {
+                return;
+            }
+
+            lastCraftedClickTime = Time.unscaledTime;
+            var battle = FindFirstObjectByType<BattleController>();
+            if (battle == null || battle.InputLocked || battle.Phase != BattlePhase.PlayerTurn)
+            {
+                return;
+            }
+
+            if (selectedItem != null && selectedItem != this)
+            {
+                selectedItem.CancelSelection();
+            }
+
+            if (!selectedForPlay)
+            {
+                MoveToPreviewSlot();
+                return;
+            }
+
+            if (motionRoutine != null)
+            {
+                StopCoroutine(motionRoutine);
+            }
+
+            motionRoutine = StartCoroutine(PlayCraftedCardRoutine());
+        }
+
+        private void MoveToPreviewSlot()
+        {
+            if (canvas == null || rectTransform == null)
+            {
+                CacheComponents();
+            }
+
+            if (canvas == null || rectTransform == null)
+            {
+                return;
+            }
+
+            if (!selectedForPlay)
+            {
+                originalParent = transform.parent;
+                originalPosition = rectTransform.anchoredPosition;
+            }
+
+            selectedForPlay = true;
+            selectedItem = this;
+            transform.SetParent(canvas.transform, true);
+            transform.SetAsLastSibling();
+            var target = GetPreviewPosition();
+            if (motionRoutine != null)
+            {
+                StopCoroutine(motionRoutine);
+            }
+
+            motionRoutine = StartCoroutine(MoveToRoutine(target, 0.22f));
+        }
+
+        private IEnumerator PlayCraftedCardRoutine()
         {
             var battle = FindFirstObjectByType<BattleController>();
-            if (battle == null || !battle.TryPlayCard(craftedCard))
+            if (battle == null)
             {
                 ReturnToOriginalSlot();
-                return;
+                yield break;
+            }
+
+            if (craftedCard != null && craftedCard.TargetsEnemy)
+            {
+                var target = GetNamedCanvasPosition("Enemy Character", rectTransform.anchoredPosition + new Vector2(0f, 160f));
+                yield return MoveToRoutine(target, 0.28f);
+            }
+            else
+            {
+                yield return FadeRoutine(0.25f);
+            }
+
+            if (!battle.TryPlayCard(craftedCard))
+            {
+                ReturnToOriginalSlot();
+                yield break;
             }
 
             ReturnToOriginalSlot();
             isDragging = false;
-            ResetToEmptyScroll();
-            gameObject.SetActive(false);
+            selectedForPlay = false;
+            FindFirstObjectByType<BattleHud>()?.Refresh();
         }
 
         public void SetHandState(bool active, int handIndex, ScrollCard card)
         {
+            var wasActive = gameObject.activeSelf;
+            var previousCardId = boundCardId;
+            var incomingCardId = card == null ? -1 : card.Id;
+            var sameCard = wasActive && previousCardId == incomingCardId;
             HandIndex = active ? handIndex : -1;
+            if (!isDragging && !selectedForPlay && !sameCard)
+            {
+                RestoreHomePlacement(true);
+            }
+
             if (!active)
             {
                 ResetToEmptyScroll();
@@ -258,18 +470,26 @@ namespace Team3Project.UI
             gameObject.SetActive(true);
             if (card == null || card.IsEmpty)
             {
-                ResetToEmptyScroll();
+                ResetToEmptyScroll(incomingCardId);
+                if (!sameCard)
+                {
+                    PlayEnterFromRight();
+                }
                 return;
             }
 
             SetCraftedCard(card);
+            if (!sameCard)
+            {
+                PlayEnterFromRight();
+            }
         }
 
-        private void ResetToEmptyScroll()
+        private void ResetToEmptyScroll(int cardId = -1)
         {
             hasCraftedCard = false;
             craftedCard = null;
-            boundCardId = -1;
+            boundCardId = cardId;
             if (TryGetComponent<Image>(out var image))
             {
                 image.color = Color.white;
@@ -287,6 +507,145 @@ namespace Team3Project.UI
 
             SetIconActive(baseIcon, false);
             SetIconActive(toppingIcon, false);
+        }
+
+        private bool IsDroppedBackToHand(Vector2 screenPosition)
+        {
+            if (canvas == null || rectTransform == null)
+            {
+                CacheComponents();
+            }
+
+            var handArea = GameObject.Find("Hand Area");
+            if (handArea != null && handArea.TryGetComponent<RectTransform>(out var handRect))
+            {
+                var camera = canvas == null || canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+                if (RectTransformUtility.RectangleContainsScreenPoint(handRect, screenPosition, camera))
+                {
+                    return true;
+                }
+            }
+
+            if (!hasHomeSlot || canvas == null)
+            {
+                return false;
+            }
+
+            var canvasRect = canvas.GetComponent<RectTransform>();
+            if (canvasRect == null)
+            {
+                return false;
+            }
+
+            var cameraForCanvas = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            var homeWorld = homeParent is RectTransform parentRect
+                ? parentRect.TransformPoint(homePosition)
+                : transform.TransformPoint(homePosition);
+            var homeScreen = RectTransformUtility.WorldToScreenPoint(cameraForCanvas, homeWorld);
+            return Vector2.Distance(screenPosition, homeScreen) < 180f;
+        }
+
+        private void PlayEnterFromRight()
+        {
+            if (!gameObject.activeInHierarchy || rectTransform == null || isDragging)
+            {
+                return;
+            }
+
+            StopMotion();
+
+            if (!selectedForPlay)
+            {
+                RestoreHomePlacement(false);
+            }
+
+            var target = hasHomeSlot ? homePosition : rectTransform.anchoredPosition;
+            rectTransform.anchoredPosition = target + new Vector2(160f, 0f);
+            motionRoutine = StartCoroutine(MoveToRoutine(target, 0.42f));
+        }
+
+        private Vector2 GetPreviewPosition()
+        {
+            var resourceStorage = GameObject.Find("Resource Storage");
+            var canvasRect = canvas == null ? null : canvas.GetComponent<RectTransform>();
+            if (resourceStorage != null && canvasRect != null && resourceStorage.TryGetComponent<RectTransform>(out var storageRect))
+            {
+                var worldPoint = storageRect.TransformPoint(new Vector3(storageRect.rect.width * 0.5f + 82f, 0f, 0f));
+                var camera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    canvasRect,
+                    RectTransformUtility.WorldToScreenPoint(camera, worldPoint),
+                    camera,
+                    out var localPoint);
+                return localPoint;
+            }
+
+            return rectTransform.anchoredPosition + new Vector2(0f, 130f);
+        }
+
+        private Vector2 GetNamedCanvasPosition(string objectName, Vector2 fallback)
+        {
+            var targetObject = GameObject.Find(objectName);
+            var canvasRect = canvas == null ? null : canvas.GetComponent<RectTransform>();
+            if (targetObject == null || canvasRect == null || !targetObject.TryGetComponent<RectTransform>(out var targetRect))
+            {
+                return fallback;
+            }
+
+            var camera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRect,
+                RectTransformUtility.WorldToScreenPoint(camera, targetRect.position),
+                camera,
+                out var localPoint);
+            return localPoint;
+        }
+
+        private IEnumerator MoveToRoutine(Vector2 target, float duration)
+        {
+            if (rectTransform == null)
+            {
+                yield break;
+            }
+
+            var start = rectTransform.anchoredPosition;
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                var t = 1f - Mathf.Pow(1f - Mathf.Clamp01(elapsed / duration), 3f);
+                rectTransform.anchoredPosition = Vector2.Lerp(start, target, t);
+                yield return null;
+            }
+
+            rectTransform.anchoredPosition = target;
+            motionRoutine = null;
+        }
+
+        private IEnumerator FadeRoutine(float duration)
+        {
+            if (canvasGroup == null)
+            {
+                CacheComponents();
+            }
+
+            var startAlpha = canvasGroup == null ? 1f : canvasGroup.alpha;
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                if (canvasGroup != null)
+                {
+                    canvasGroup.alpha = Mathf.Lerp(startAlpha, 0f, Mathf.Clamp01(elapsed / duration));
+                }
+
+                yield return null;
+            }
+
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = 1f;
+            }
         }
 
         private void EnsureCardText()

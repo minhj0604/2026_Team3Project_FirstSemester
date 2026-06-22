@@ -190,16 +190,21 @@ namespace Team3Project.UI
             if (!string.IsNullOrWhiteSpace(sceneName) && Application.isEditor)
             {
                 var projectRoot = Directory.GetParent(Application.dataPath)?.FullName;
+                var sceneAssetPath = Path.IsPathRooted(editorScenePath) && !string.IsNullOrEmpty(projectRoot)
+                    ? Path.GetRelativePath(projectRoot, editorScenePath)
+                    : editorScenePath;
+                sceneAssetPath = sceneAssetPath.Replace('\\', '/');
+
                 var fullPath = Path.IsPathRooted(editorScenePath)
                     ? editorScenePath
-                    : Path.GetFullPath(Path.Combine(projectRoot ?? string.Empty, editorScenePath));
+                    : Path.GetFullPath(Path.Combine(projectRoot ?? string.Empty, sceneAssetPath));
                 if (!File.Exists(fullPath))
                 {
                     Debug.LogError($"Scene file does not exist: {fullPath}. Check that the scene exists in Assets/Scenes.");
                     return;
                 }
 
-                EditorSceneManager.LoadSceneInPlayMode(fullPath, new LoadSceneParameters(LoadSceneMode.Single));
+                EditorSceneManager.LoadSceneInPlayMode(sceneAssetPath, new LoadSceneParameters(LoadSceneMode.Single));
                 return;
             }
 #endif
