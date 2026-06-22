@@ -23,7 +23,7 @@ namespace Team3Project.GameSystems
         [SerializeField] private int maxCostCap = 10;
         [SerializeField] private int cardsDrawnPerTurn = 3;
         [SerializeField] private int maxHandSize = 5;
-        [SerializeField] private int resourcesPerTurn = 10;
+        [SerializeField] private int resourcesPerTurn = 14;
         [SerializeField] private int maxResources = 36;
         [SerializeField] private int startingEmptyScrollCount = 15;
         [SerializeField] private string gameOverSceneName = "GameOverScene";
@@ -49,13 +49,15 @@ namespace Team3Project.GameSystems
         public int MaxHandSize => maxHandSize;
         public int DrawDeckCount => drawDeck.Count;
         public int DiscardCount => DiscardPile.Count;
-        public int EnemyIntentDamage => Enemy == null || Enemy.IsBroken ? 0 : Mathf.Max(1, 8 + Enemy.Strength);
-        public string EnemyIntentText => Enemy.IsBroken ? "회복" : $"공격 {EnemyIntentDamage}";
+        public int EnemyIntentDamage => GetEnemyIntentDamage(SelectedEnemyIndex);
+        public string EnemyIntentText => GetEnemyIntentText(SelectedEnemyIndex);
         public int SelectedEnemyIndex { get; private set; }
         public int EnemyCount => Enemies.Count;
         public CombatantState SelectedEnemy => GetEnemy(SelectedEnemyIndex);
         public string LastLog { get; private set; } = string.Empty;
         public EnemyPose EnemyPose => GetEnemyPose(SelectedEnemyIndex);
+        public bool CardResetModeActive => cardResetMode;
+        public bool CanEnterCardResetMode => Phase == BattlePhase.PlayerTurn && !InputLocked && (ChapterCardResetUnlocked.TryGetValue(chapterIndex, out var unlocked) && unlocked || Hand.Exists(CanResetCard));
         public int PlayerHitPulse { get; private set; }
         public bool InputLocked { get; private set; }
         public string TurnBannerText { get; private set; } = string.Empty;
@@ -69,12 +71,18 @@ namespace Team3Project.GameSystems
         private static readonly Dictionary<int, List<ScrollCard>> ChapterDrawDecks = new();
         private static readonly Dictionary<int, List<ScrollCard>> ChapterDiscardDecks = new();
         private static readonly Dictionary<int, List<ScrollCard>> ChapterHandCards = new();
+        private static readonly Dictionary<int, List<MergeResource>> ChapterResources = new();
+        private static readonly Dictionary<int, bool> ChapterCardResetUnlocked = new();
         private readonly CombatantState fallbackEnemy = new();
         private Coroutine enemyPoseRoutine;
         private Coroutine turnRoutine;
         private Coroutine stageStartRoutine;
         private int inputLockToken;
         private bool gameOverTriggered;
+        private bool cardResetMode;
+        private bool duCookieAttackGuardSummoned;
+        private bool duCookieAttackGuardDefeated;
+        private bool duCookieShieldGuardSummoned;
         private readonly List<EnemyPose> enemyPoses = new();
         private int ResourceLimit => maxResources > 0 ? maxResources : 36;
 
@@ -83,6 +91,8 @@ namespace Team3Project.GameSystems
             ChapterDrawDecks.Remove(chapter);
             ChapterDiscardDecks.Remove(chapter);
             ChapterHandCards.Remove(chapter);
+            ChapterResources.Remove(chapter);
+            ChapterCardResetUnlocked.Remove(chapter);
             PlayerPrefs.SetInt($"{ClearedStageKeyPrefix}{chapter}", 0);
             PlayerPrefs.SetInt($"{ChapterEntrySeenKeyPrefix}{chapter}", 0);
             PlayerPrefs.SetInt(SelectedChapterKey, chapter);
@@ -128,7 +138,6 @@ namespace Team3Project.GameSystems
             Player.Reset("마카롱", 50, ElementType.None, 0);
             BuildStageEnemies();
             Hand.Clear();
-            Resources.Clear();
             SetEnemyPose(EnemyPose.Idle);
             LoadChapterDeckState();
             NotifyChanged();
@@ -197,6 +206,7 @@ namespace Team3Project.GameSystems
             }
 
             SelectedEnemyIndex = index;
+            LastLog = $"{Enemies[index].Name} 선택";
             NotifyChanged();
         }
 
@@ -204,19 +214,20 @@ namespace Team3Project.GameSystems
         {
             Enemies.Clear();
             enemyPoses.Clear();
+            ClearBossRuntimeFlags();
 
             switch (stageIndex)
             {
                 case 1:
-                    AddEnemy("요거트 아이스크림 슬라임 A", 38, ElementType.Berry, 2);
-                    AddEnemy("요거트 아이스크림 슬라임 B", 38, ElementType.PoppingCandy, 2);
+                    AddFormChangingEnemy("요거트 아이스크림 슬라임 A", 38, ElementType.Berry, 2);
+                    AddFormChangingEnemy("요거트 아이스크림 슬라임 B", 38, ElementType.PoppingCandy, 2);
                     break;
                 case 2:
-                    AddEnemy("딸기 탕후루 경호원(삼단봉)", 52, ElementType.Chocolate, 2);
-                    AddEnemy("감귤 탕후루 경호원(방패)", 58, ElementType.Marshmallow, 3);
+                    AddEnemy("딸기 탕후루 경호원(삼단봉)", 72, ElementType.Chocolate, 2);
+                    AddEnemy("감귤 탕후루 경호원(방패)", 82, ElementType.Marshmallow, 3);
                     break;
                 default:
-                    AddEnemy("두바이 쫀득 쿠키", 85, ElementType.Berry, 3);
+                    AddEnemy("두바이 쫀득 쿠키", 150, ElementType.Berry, 4);
                     break;
             }
 
@@ -229,6 +240,14 @@ namespace Team3Project.GameSystems
             enemy.Reset(displayName, maxHp, weakness, shieldCount);
             Enemies.Add(enemy);
             enemyPoses.Add(EnemyPose.Idle);
+        }
+
+        private void AddFormChangingEnemy(string displayName, int maxHp, ElementType weakness, int shieldCount)
+        {
+            AddEnemy(displayName, maxHp, weakness, shieldCount);
+            var enemy = Enemies[Enemies.Count - 1];
+            enemy.ChangesFormOnWeaknessHit = true;
+            enemy.FormIndex = WeaknessToFormIndex(weakness);
         }
 
         private bool SelectFirstLivingEnemy()
@@ -252,8 +271,8 @@ namespace Team3Project.GameSystems
             Player.Guard = 0;
             CurrentCost = Mathf.Min(CurrentCost + MaxCost, maxCostCap);
             DrawEmptyScrolls(cardsDrawnPerTurn);
-            AddTurnResources();
             LastLog = "플레이어 턴";
+            AddTurnResources();
             ShowTurnBanner("플레이어 턴!", 2f);
             NotifyChanged();
         }
@@ -282,6 +301,8 @@ namespace Team3Project.GameSystems
             Resources[second] = MergeResource.Empty;
             LastLog = "자원 합성";
             MarkMerged(first);
+            CompactResourceStorage();
+            SaveChapterDeckState();
             NotifyChanged();
             return true;
         }
@@ -316,6 +337,7 @@ namespace Team3Project.GameSystems
             Resources[secondIndex] = MergeResource.Empty;
             LastLog = "자원 합성";
             MarkMerged(firstIndex);
+            CompactResourceStorage();
             SaveChapterDeckState();
             NotifyChanged();
             return true;
@@ -345,8 +367,11 @@ namespace Team3Project.GameSystems
             var resultResource = new MergeResource(firstResource.Family, firstResource.Stage + 1);
             Resources[secondIndex] = resultResource;
             Resources[firstIndex] = MergeResource.Empty;
+            var resultIndex = firstIndex < secondIndex ? secondIndex - 1 : secondIndex;
+            CompactResourceStorage();
             LastLog = "자원 합성";
-            MarkMerged(secondIndex);
+            MarkMerged(resultIndex);
+            SaveChapterDeckState();
             NotifyChanged();
             return true;
         }
@@ -360,6 +385,8 @@ namespace Team3Project.GameSystems
             }
 
             Resources[index] = MergeResource.Empty;
+            CompactResourceStorage();
+            SaveChapterDeckState();
             NotifyChanged();
             return true;
         }
@@ -392,6 +419,7 @@ namespace Team3Project.GameSystems
                 Resources[index] = MergeResource.Empty;
             }
 
+            CompactResourceStorage();
             SaveChapterDeckState();
             NotifyChanged();
             return true;
@@ -432,6 +460,7 @@ namespace Team3Project.GameSystems
             var toppingResource = Resources[toppingIndex];
             Resources[baseIndex] = MergeResource.Empty;
             Resources[toppingIndex] = MergeResource.Empty;
+            CompactResourceStorage();
             Hand[handIndex] = ScrollCard.Craft(baseResource, toppingResource, Hand[handIndex].Id);
             LastLog = "스크롤 제작";
             SaveChapterDeckState();
@@ -478,6 +507,7 @@ namespace Team3Project.GameSystems
             craftedCard = ScrollCard.Craft(baseResource, toppingResource, Hand[handIndex].Id);
             Resources[baseResourceIndex] = MergeResource.Empty;
             Resources[toppingResourceIndex] = MergeResource.Empty;
+            CompactResourceStorage();
             MoveCraftedCardToFront(handIndex, craftedCard);
             LastLog = "스크롤 제작";
             SaveChapterDeckState();
@@ -519,6 +549,57 @@ namespace Team3Project.GameSystems
             return TryPlayCardAt(handIndex);
         }
 
+        public void ToggleCardResetMode()
+        {
+            if (!CanEnterCardResetMode)
+            {
+                cardResetMode = false;
+                LastLog = "초기화 가능한 카드 없음";
+                NotifyChanged();
+                return;
+            }
+
+            cardResetMode = !cardResetMode;
+            LastLog = cardResetMode ? "초기화할 카드 선택" : "카드 초기화 취소";
+            NotifyChanged();
+        }
+
+        public bool TryResetHandCard(int handIndex)
+        {
+            if (!cardResetMode || handIndex < 0 || handIndex >= Hand.Count)
+            {
+                return false;
+            }
+
+            var card = Hand[handIndex];
+            if (!CanResetCard(card))
+            {
+                LastLog = "초기화 가능한 카드 아님";
+                cardResetMode = false;
+                NotifyChanged();
+                return false;
+            }
+
+            ReturnCraftResourcesToBag(card);
+            Hand[handIndex] = CreateEmptyScroll(card.Id);
+            cardResetMode = false;
+            LastLog = "스크롤 초기화";
+            SaveChapterDeckState();
+            NotifyChanged();
+            return true;
+        }
+
+        public bool TryResetCardById(int cardId)
+        {
+            var handIndex = Hand.FindIndex(card => card != null && card.Id == cardId);
+            return TryResetHandCard(handIndex);
+        }
+
+        private static bool CanResetCard(ScrollCard card)
+        {
+            return card != null && !card.IsEmpty && (card.UpgradeLevel > 0 || card.IsContaminated);
+        }
+
         private bool TryPlayCardAt(int handIndex)
         {
             if (InputLocked || Phase != BattlePhase.PlayerTurn)
@@ -547,6 +628,12 @@ namespace Team3Project.GameSystems
             }
 
             CurrentCost -= card.Cost;
+            if (ApplyContaminatedCardUsePenalty(card) && Player.IsDead)
+            {
+                TriggerGameOver();
+                return false;
+            }
+
             ResolveCard(card);
             DiscardPile.Add(card);
             Hand.RemoveAt(handIndex);
@@ -579,6 +666,12 @@ namespace Team3Project.GameSystems
             }
 
             CurrentCost -= card.Cost;
+            if (ApplyContaminatedCardUsePenalty(card) && Player.IsDead)
+            {
+                TriggerGameOver();
+                return;
+            }
+
             ResolveCard(card);
             DiscardPile.Add(card);
             Hand.RemoveAt(handIndex);
@@ -601,6 +694,14 @@ namespace Team3Project.GameSystems
 
             if (Phase != BattlePhase.PlayerTurn)
             {
+                return;
+            }
+
+            cardResetMode = false;
+            ApplyContaminatedHandPenalty();
+            if (Player.IsDead)
+            {
+                TriggerGameOver();
                 return;
             }
 
@@ -653,6 +754,10 @@ namespace Team3Project.GameSystems
                     {
                         damage = Mathf.RoundToInt(damage * 1.5f);
                         BreakShieldOrReward(target, card.Element);
+                        if (target.ChangesFormOnWeaknessHit)
+                        {
+                            target.PendingFormChange = true;
+                        }
                     }
 
                     if (target.IsBroken)
@@ -680,6 +785,11 @@ namespace Team3Project.GameSystems
 
             if (target.IsDead)
             {
+                if (stageIndex == 3 && IsStageThreeAttackGuard(targetIndex, true))
+                {
+                    duCookieAttackGuardDefeated = true;
+                }
+
                 SelectFirstLivingEnemy();
             }
 
@@ -755,6 +865,12 @@ namespace Team3Project.GameSystems
                 SelectedEnemyIndex = i;
                 NotifyChanged();
 
+                if (ApplyPendingFormChange(enemy))
+                {
+                    NotifyChanged();
+                    yield return new WaitForSeconds(0.45f);
+                }
+
                 if (enemy.IsBroken)
                 {
                     enemy.IsBroken = false;
@@ -766,7 +882,7 @@ namespace Team3Project.GameSystems
                     continue;
                 }
 
-                yield return EnemyAttackRoutine(i);
+                yield return EnemyActionRoutine(i);
                 if (Player.IsDead)
                 {
                     yield break;
@@ -777,11 +893,332 @@ namespace Team3Project.GameSystems
             BeginPlayerTurn();
         }
 
+        private bool ApplyPendingFormChange(CombatantState enemy)
+        {
+            if (enemy == null || !enemy.ChangesFormOnWeaknessHit || !enemy.PendingFormChange || enemy.IsDead)
+            {
+                return false;
+            }
+
+            enemy.PendingFormChange = false;
+            enemy.FormIndex = (enemy.FormIndex + 1) % 4;
+            enemy.Weakness = FormIndexToWeakness(enemy.FormIndex);
+            enemy.WeaknessHitsRemaining = enemy.WeaknessHitsRequired;
+            LastLog = $"{enemy.Name} 폼 변경";
+            return true;
+        }
+
+        private static int WeaknessToFormIndex(ElementType weakness)
+        {
+            return weakness switch
+            {
+                ElementType.PoppingCandy => 0,
+                ElementType.Marshmallow => 1,
+                ElementType.Chocolate => 2,
+                ElementType.Berry => 3,
+                _ => 0
+            };
+        }
+
+        private static ElementType FormIndexToWeakness(int formIndex)
+        {
+            return formIndex switch
+            {
+                0 => ElementType.PoppingCandy,
+                1 => ElementType.Marshmallow,
+                2 => ElementType.Chocolate,
+                _ => ElementType.Berry
+            };
+        }
+
+        private bool ApplyContaminatedCardUsePenalty(ScrollCard card)
+        {
+            if (card == null || !card.IsContaminated)
+            {
+                return false;
+            }
+
+            const int damage = 5;
+            var dealt = Player.TakeDamage(damage);
+            PlayerHitPulse++;
+            LastLog = $"오염 스크롤 피해 {dealt}";
+            NotifyChanged();
+            return true;
+        }
+
+        private void ApplyContaminatedHandPenalty()
+        {
+            var contaminatedCount = Hand.FindAll(card => card != null && !card.IsEmpty && card.IsContaminated).Count;
+            if (contaminatedCount <= 0)
+            {
+                return;
+            }
+
+            var damage = contaminatedCount * 3;
+            var dealt = Player.TakeDamage(damage);
+            PlayerHitPulse++;
+            LastLog = $"오염 스크롤 방치 피해 {dealt}";
+            NotifyChanged();
+        }
+
+        private bool ContaminateHandCard()
+        {
+            var index = Hand.FindIndex(card => card != null && !card.IsEmpty && !card.IsContaminated);
+            if (index < 0)
+            {
+                return false;
+            }
+
+            Hand[index].IsContaminated = true;
+            SaveChapterDeckState();
+            return true;
+        }
+
+        private bool HasContaminatableCard()
+        {
+            return Hand.Exists(card => card != null && !card.IsEmpty && !card.IsContaminated);
+        }
+
+        private IEnumerator EnemyActionRoutine(int enemyIndex)
+        {
+            if (stageIndex == 3)
+            {
+                if (enemyIndex == 0)
+                {
+                    yield return DuCookieActionRoutine(enemyIndex);
+                    yield break;
+                }
+
+                if (IsStageThreeAttackGuard(enemyIndex))
+                {
+                    yield return StageThreeSummonedGuardActionRoutine(enemyIndex, true);
+                    yield break;
+                }
+
+                if (IsStageThreeShieldGuard(enemyIndex))
+                {
+                    yield return StageThreeSummonedGuardActionRoutine(enemyIndex, false);
+                    yield break;
+                }
+            }
+
+            if (stageIndex == 2)
+            {
+                if (enemyIndex == 0)
+                {
+                    yield return StrawberryGuardActionRoutine(enemyIndex);
+                    yield break;
+                }
+
+                if (enemyIndex == 1)
+                {
+                    yield return MandarinGuardActionRoutine(enemyIndex);
+                    yield break;
+                }
+            }
+
+            yield return EnemyAttackRoutine(enemyIndex);
+        }
+
+        private IEnumerator DuCookieActionRoutine(int enemyIndex)
+        {
+            var boss = GetEnemy(enemyIndex);
+            var actionCount = boss.AiTurnCount;
+            boss.AiTurnCount++;
+
+            if (!duCookieAttackGuardSummoned)
+            {
+                duCookieAttackGuardSummoned = true;
+                SummonStageThreeGuard("딸기 탕후루 경호원(삼단봉)", 62, ElementType.Chocolate, 2);
+                EnemyActionLog = "두바이 쫀득 쿠키 경호원 소환";
+                EnemyActionPulse++;
+                LastLog = "공격 경호원 소환";
+                NotifyChanged();
+                yield return new WaitForSeconds(0.85f);
+                yield break;
+            }
+
+            if (!duCookieShieldGuardSummoned && duCookieAttackGuardDefeated)
+            {
+                duCookieShieldGuardSummoned = true;
+                SummonStageThreeGuard("감귤 탕후루 경호원(방패)", 70, ElementType.Marshmallow, 3);
+                EnemyActionLog = "두바이 쫀득 쿠키 방패 호출";
+                EnemyActionPulse++;
+                LastLog = "방어 경호원 소환";
+                NotifyChanged();
+                yield return new WaitForSeconds(0.85f);
+                yield break;
+            }
+
+            if (actionCount % 3 == 2 && ContaminateHandCard())
+            {
+                EnemyActionLog = "두바이 쫀득 쿠키 초코 마시멜로";
+                EnemyActionPulse++;
+                LastLog = "스크롤 오염";
+                NotifyChanged();
+                yield return new WaitForSeconds(0.85f);
+                yield break;
+            }
+
+            yield return EnemyAttackRoutine(enemyIndex, GetEnemyIntentDamage(enemyIndex));
+        }
+
+        private IEnumerator StageThreeSummonedGuardActionRoutine(int enemyIndex, bool attackGuard)
+        {
+            var enemy = GetEnemy(enemyIndex);
+            if (enemy.AiTurnCount < 0)
+            {
+                enemy.AiTurnCount = 0;
+                EnemyActionLog = $"{enemy.Name} 대기";
+                EnemyActionPulse++;
+                LastLog = "소환 직후 대기";
+                NotifyChanged();
+                yield return new WaitForSeconds(0.55f);
+                yield break;
+            }
+
+            if (attackGuard)
+            {
+                yield return StrawberryGuardActionRoutine(enemyIndex);
+                yield break;
+            }
+
+            yield return MandarinGuardActionRoutine(enemyIndex);
+        }
+
+        private void SummonStageThreeGuard(string displayName, int maxHp, ElementType weakness, int shieldCount)
+        {
+            AddEnemy(displayName, maxHp, weakness, shieldCount);
+            var summoned = Enemies[Enemies.Count - 1];
+            summoned.AiTurnCount = -1;
+        }
+
+        private IEnumerator StrawberryGuardActionRoutine(int enemyIndex)
+        {
+            var enemy = GetEnemy(enemyIndex);
+            if (enemy.AiTurnCount % 2 == 1)
+            {
+                const int chargeBonus = 4;
+                enemy.Strength += chargeBonus;
+                enemy.AttackChargeBonus += chargeBonus;
+                enemy.AiTurnCount++;
+                EnemyActionLog = $"{enemy.Name} 예열";
+                EnemyActionPulse++;
+                LastLog = "딸기 경호원 공격 준비";
+                NotifyChanged();
+                yield return new WaitForSeconds(0.75f);
+                yield break;
+            }
+
+            var attack = GetEnemyIntentDamage(enemyIndex);
+            enemy.AiTurnCount++;
+            yield return EnemyAttackRoutine(enemyIndex, attack);
+            if (enemy.AttackChargeBonus > 0)
+            {
+                enemy.Strength -= enemy.AttackChargeBonus;
+                enemy.AttackChargeBonus = 0;
+                NotifyChanged();
+            }
+        }
+
+        private IEnumerator MandarinGuardActionRoutine(int enemyIndex)
+        {
+            var enemy = GetEnemy(enemyIndex);
+            var shouldHeal = ShouldMandarinHeal(enemy, true);
+            var shouldShield = ShouldMandarinShieldTarget();
+            var attack = GetEnemyIntentDamage(enemyIndex);
+            enemy.AiTurnCount++;
+
+            if (shouldHeal)
+            {
+                var amount = Mathf.Min(10, enemy.MaxHp - enemy.Hp);
+                enemy.Hp += amount;
+                EnemyActionLog = $"{enemy.Name} 회복 {amount}";
+                EnemyActionPulse++;
+                LastLog = "감귤 경호원 회복";
+                NotifyChanged();
+                yield return new WaitForSeconds(0.75f);
+                yield break;
+            }
+
+            if (shouldShield)
+            {
+                var strawberry = GetMandarinShieldTarget();
+                const int shieldAmount = 9;
+                strawberry.Guard += shieldAmount;
+                EnemyActionLog = $"{enemy.Name} 방어막 {shieldAmount}";
+                EnemyActionPulse++;
+                LastLog = "딸기 경호원 보호";
+                NotifyChanged();
+                yield return new WaitForSeconds(0.75f);
+                yield break;
+            }
+
+            yield return EnemyAttackRoutine(enemyIndex, attack);
+        }
+
+        private static bool ShouldMandarinHeal(CombatantState enemy, bool nextAction = false)
+        {
+            var turnCount = enemy == null ? 0 : enemy.AiTurnCount + (nextAction ? 1 : 0);
+            return enemy != null
+                && enemy.Hp > 0
+                && enemy.Hp <= Mathf.CeilToInt(enemy.MaxHp * 0.45f)
+                && enemy.Hp < enemy.MaxHp
+                && turnCount % 3 == 0;
+        }
+
+        private bool ShouldMandarinShieldTarget()
+        {
+            var strawberry = GetMandarinShieldTarget();
+            return strawberry != null && !strawberry.IsDead && strawberry.Guard <= 0;
+        }
+
+        private CombatantState GetMandarinShieldTarget()
+        {
+            if (stageIndex == 3)
+            {
+                for (var i = 1; i < Enemies.Count; i++)
+                {
+                    if (IsStageThreeAttackGuard(i))
+                    {
+                        return Enemies[i];
+                    }
+                }
+
+                return null;
+            }
+
+            return GetEnemy(0);
+        }
+
+        private bool IsStageThreeAttackGuard(int enemyIndex, bool includeDead = false)
+        {
+            return stageIndex == 3
+                && enemyIndex > 0
+                && enemyIndex < Enemies.Count
+                && (includeDead || !Enemies[enemyIndex].IsDead)
+                && Enemies[enemyIndex].Name.Contains("딸기");
+        }
+
+        private bool IsStageThreeShieldGuard(int enemyIndex, bool includeDead = false)
+        {
+            return stageIndex == 3
+                && enemyIndex > 0
+                && enemyIndex < Enemies.Count
+                && (includeDead || !Enemies[enemyIndex].IsDead)
+                && Enemies[enemyIndex].Name.Contains("감귤");
+        }
+
         private IEnumerator EnemyAttackRoutine(int enemyIndex = -1)
+        {
+            yield return EnemyAttackRoutine(enemyIndex, GetEnemyIntentDamage(enemyIndex));
+        }
+
+        private IEnumerator EnemyAttackRoutine(int enemyIndex, int attack)
         {
             var actingIndex = enemyIndex >= 0 ? enemyIndex : SelectedEnemyIndex;
             var enemy = GetEnemy(actingIndex);
-            var attack = Mathf.Max(1, 8 + enemy.Strength);
+            attack = Mathf.Max(1, attack);
             EnemyActionLog = $"{enemy.Name} 공격 {attack}";
             EnemyActionPulse++;
             SetEnemyPose(actingIndex, EnemyPose.Attack, 0.7f);
@@ -798,6 +1235,137 @@ namespace Team3Project.GameSystems
                 TriggerGameOver();
                 yield break;
             }
+        }
+
+        private int GetEnemyIntentDamage(int enemyIndex)
+        {
+            var enemy = GetEnemy(enemyIndex);
+            if (enemy == null || enemy.IsBroken || enemy.IsDead)
+            {
+                return 0;
+            }
+
+            if (stageIndex == 2)
+            {
+                if (enemyIndex == 0)
+                {
+                    return enemy.AiTurnCount % 2 == 1 ? 0 : Mathf.Max(1, 14 + enemy.Strength);
+                }
+
+                if (enemyIndex == 1)
+                {
+                    return ShouldMandarinHeal(enemy, true) || ShouldMandarinShieldTarget() ? 0 : Mathf.Max(1, 8 + enemy.Strength);
+                }
+            }
+
+            if (stageIndex == 3)
+            {
+                if (enemyIndex == 0)
+                {
+                    return Mathf.Max(1, 14 + enemy.Strength);
+                }
+
+                if (IsStageThreeAttackGuard(enemyIndex))
+                {
+                    return enemy.AiTurnCount < 0 || enemy.AiTurnCount % 2 == 1 ? 0 : Mathf.Max(1, 14 + enemy.Strength);
+                }
+
+                if (IsStageThreeShieldGuard(enemyIndex))
+                {
+                    return enemy.AiTurnCount < 0 || ShouldMandarinHeal(enemy, true) || ShouldMandarinShieldTarget() ? 0 : Mathf.Max(1, 8 + enemy.Strength);
+                }
+            }
+
+            return Mathf.Max(1, 8 + enemy.Strength);
+        }
+
+        private string GetEnemyIntentText(int enemyIndex)
+        {
+            var enemy = GetEnemy(enemyIndex);
+            if (enemy == null || enemy.IsDead)
+            {
+                return "-";
+            }
+
+            if (enemy.IsBroken)
+            {
+                return "행동 불가";
+            }
+
+            if (stageIndex == 2)
+            {
+                if (enemyIndex == 0 && enemy.AiTurnCount % 2 == 1)
+                {
+                    return "예열";
+                }
+
+                if (enemyIndex == 1)
+                {
+                    if (ShouldMandarinHeal(enemy, true))
+                    {
+                        return "회복";
+                    }
+
+                    if (ShouldMandarinShieldTarget())
+                    {
+                        return "방어막";
+                    }
+                }
+            }
+
+            if (stageIndex == 3)
+            {
+                if (enemyIndex == 0)
+                {
+                    if (!duCookieAttackGuardSummoned)
+                    {
+                        return "소환";
+                    }
+
+                    if (!duCookieShieldGuardSummoned && duCookieAttackGuardDefeated)
+                    {
+                        return "소환";
+                    }
+
+                    if (enemy.AiTurnCount % 3 == 2 && HasContaminatableCard())
+                    {
+                        return "오염";
+                    }
+                }
+
+                if (IsStageThreeAttackGuard(enemyIndex))
+                {
+                    if (enemy.AiTurnCount < 0)
+                    {
+                        return "대기";
+                    }
+
+                    if (enemy.AiTurnCount % 2 == 1)
+                    {
+                        return "예열";
+                    }
+                }
+
+                if (IsStageThreeShieldGuard(enemyIndex))
+                {
+                    if (enemy.AiTurnCount < 0)
+                    {
+                        return "대기";
+                    }
+
+                    if (ShouldMandarinHeal(enemy, true))
+                    {
+                        return "회복";
+                    }
+
+                    if (ShouldMandarinShieldTarget())
+                    {
+                        return "방어막";
+                    }
+                }
+            }
+
+            return $"공격 {GetEnemyIntentDamage(enemyIndex)}";
         }
 
         private void TriggerGameOver()
@@ -833,6 +1401,7 @@ namespace Team3Project.GameSystems
             var hasSavedDraw = ChapterDrawDecks.TryGetValue(chapterIndex, out var savedDrawDeck);
             var hasSavedDiscard = ChapterDiscardDecks.TryGetValue(chapterIndex, out var savedDiscardDeck);
             var hasSavedHand = ChapterHandCards.TryGetValue(chapterIndex, out var savedHand);
+            var hasSavedResources = ChapterResources.TryGetValue(chapterIndex, out var savedResources);
             if (!hasSavedDraw && !hasSavedDiscard && !hasSavedHand)
             {
                 savedDrawDeck = BuildEmptyScrollDeck();
@@ -863,6 +1432,13 @@ namespace Team3Project.GameSystems
                     Hand.Add(CloneCard(card));
                 }
             }
+
+            Resources.Clear();
+            if (hasSavedResources)
+            {
+                Resources.AddRange(CloneResources(savedResources));
+                CompactResourceStorage();
+            }
         }
 
         private List<ScrollCard> BuildEmptyScrollDeck()
@@ -876,7 +1452,7 @@ namespace Team3Project.GameSystems
             return deck;
         }
 
-        private static ScrollCard CreateEmptyScroll()
+        private static ScrollCard CreateEmptyScroll(int sourceScrollId = 0)
         {
             var card = new ScrollCard
             {
@@ -884,9 +1460,10 @@ namespace Team3Project.GameSystems
                 Element = ElementType.None,
                 Power = 0,
                 Cost = 0,
-                DisplayName = "빈 스크롤"
+                DisplayName = "빈 스크롤",
+                IsContaminated = false
             };
-            card.Id = ScrollCard.CreateId();
+            card.Id = sourceScrollId > 0 ? sourceScrollId : ScrollCard.CreateId();
             return card;
         }
 
@@ -895,6 +1472,7 @@ namespace Team3Project.GameSystems
             ChapterDrawDecks[chapterIndex] = new List<ScrollCard>(CloneCards(drawDeck));
             ChapterDiscardDecks[chapterIndex] = new List<ScrollCard>(CloneCards(DiscardPile));
             ChapterHandCards[chapterIndex] = new List<ScrollCard>(CloneCards(Hand));
+            ChapterResources[chapterIndex] = new List<MergeResource>(CloneResources(Resources));
         }
 
         private IEnumerable<ScrollCard> CloneCards(IEnumerable<ScrollCard> cards)
@@ -929,8 +1507,27 @@ namespace Team3Project.GameSystems
                 BaseFamily = card.BaseFamily,
                 BaseStage = card.BaseStage,
                 ToppingFamily = card.ToppingFamily,
-                ToppingStage = card.ToppingStage
+                ToppingStage = card.ToppingStage,
+                IsContaminated = card.IsContaminated
             };
+        }
+
+        private static IEnumerable<MergeResource> CloneResources(IEnumerable<MergeResource> resources)
+        {
+            foreach (var resource in resources)
+            {
+                if (resource.CanUse)
+                {
+                    yield return new MergeResource(resource.Family, resource.Stage);
+                }
+            }
+        }
+
+        private void ClearBossRuntimeFlags()
+        {
+            duCookieAttackGuardSummoned = false;
+            duCookieAttackGuardDefeated = false;
+            duCookieShieldGuardSummoned = false;
         }
 
         private void SetEnemyPose(EnemyPose pose, float resetDelay = 0f)
@@ -1056,6 +1653,7 @@ namespace Team3Project.GameSystems
             }
 
             DiscardPile.Clear();
+            ChapterCardResetUnlocked[chapterIndex] = true;
             LastLog = "버림덱 회수";
         }
 
@@ -1074,11 +1672,7 @@ namespace Team3Project.GameSystems
 
         private void AddTurnResources()
         {
-            if (ActiveResourceCount >= ResourceLimit)
-            {
-                LastLog = "자원 보관함 가득 참";
-                return;
-            }
+            CompactResourceStorage();
 
             var nonSugarBaseFamilies = new[]
             {
@@ -1096,17 +1690,28 @@ namespace Team3Project.GameSystems
             };
 
             var guaranteedBase = nonSugarBaseFamilies[UnityEngine.Random.Range(0, nonSugarBaseFamilies.Length)];
-            var guaranteedTopping = toppingFamilies[UnityEngine.Random.Range(0, toppingFamilies.Length)];
-            AddResource(ResourceFamily.Sugar, 0);
-            AddResource(ResourceFamily.Sugar, 0);
-            AddResource(guaranteedBase, 0);
-            AddResource(guaranteedBase, 0);
-            AddResource(guaranteedTopping, 0);
-            AddResource(guaranteedTopping, 0);
+            var guaranteedBaseB = nonSugarBaseFamilies[UnityEngine.Random.Range(0, nonSugarBaseFamilies.Length)];
+            var guaranteedToppingA = toppingFamilies[UnityEngine.Random.Range(0, toppingFamilies.Length)];
+            var guaranteedToppingB = toppingFamilies[UnityEngine.Random.Range(0, toppingFamilies.Length)];
+            var guaranteedToppingC = toppingFamilies[UnityEngine.Random.Range(0, toppingFamilies.Length)];
+            var plannedResources = new List<ResourceFamily>
+            {
+                ResourceFamily.Sugar,
+                ResourceFamily.Sugar,
+                guaranteedBase,
+                guaranteedBase,
+                guaranteedBaseB,
+                guaranteedBaseB,
+                guaranteedToppingA,
+                guaranteedToppingA,
+                guaranteedToppingB,
+                guaranteedToppingB,
+                guaranteedToppingC,
+                guaranteedToppingC
+            };
 
             var weightedFamilies = new[]
             {
-                ResourceFamily.Sugar,
                 ResourceFamily.Sugar,
                 ResourceFamily.Sugar,
                 ResourceFamily.Dough,
@@ -1115,33 +1720,110 @@ namespace Team3Project.GameSystems
                 ResourceFamily.Berry,
                 ResourceFamily.Chocolate,
                 ResourceFamily.Marshmallow,
+                ResourceFamily.PoppingCandy,
+                ResourceFamily.Berry,
+                ResourceFamily.Chocolate,
+                ResourceFamily.Marshmallow,
                 ResourceFamily.PoppingCandy
             };
 
-            for (var i = 6; i < resourcesPerTurn; i++)
+            while (plannedResources.Count < resourcesPerTurn)
             {
-                AddResource(weightedFamilies[UnityEngine.Random.Range(0, weightedFamilies.Length)], 0);
+                plannedResources.Add(weightedFamilies[UnityEngine.Random.Range(0, weightedFamilies.Length)]);
+            }
+
+            InsertResourcePackageAtFront(plannedResources);
+            SaveChapterDeckState();
+        }
+
+        private void CompactResourceStorage()
+        {
+            Resources.RemoveAll(resource => !resource.CanUse);
+        }
+
+        private void InsertResourcePackageAtFront(List<ResourceFamily> plannedResources)
+        {
+            var resources = new List<MergeResource>();
+            foreach (var family in plannedResources)
+            {
+                resources.Add(new MergeResource(family, 0));
+            }
+
+            InsertResourcesAtFront(resources, plannedResources.Count);
+        }
+
+        private void ReturnCraftResourcesToBag(ScrollCard card)
+        {
+            var returnedResources = new List<MergeResource>
+            {
+                new(card.BaseFamily, card.BaseStage)
+            };
+
+            if (card.ToppingStage > 0)
+            {
+                returnedResources.Add(new MergeResource(card.ToppingFamily, card.ToppingStage));
+            }
+
+            InsertResourcesAtFront(returnedResources, returnedResources.Count);
+            CompactResourceStorage();
+        }
+
+        private void InsertResourcesAtFront(List<MergeResource> resources, int protectedFrontCount)
+        {
+            if (resources == null || resources.Count == 0)
+            {
+                return;
+            }
+
+            CompactResourceStorage();
+            var overflow = Mathf.Max(0, ActiveResourceCount + resources.Count - ResourceLimit);
+            for (var i = resources.Count - 1; i >= 0; i--)
+            {
+                Resources.Insert(0, resources[i]);
+            }
+
+            TrimResourceListToLimit(protectedFrontCount);
+            if (overflow > 0)
+            {
+                LastLog = $"자원 +{resources.Count} / 보관함 가득 참";
             }
         }
 
-        private void AddResource(ResourceFamily family, int stage)
+        private void TrimResourceListToLimit(int protectedFrontCount)
         {
-            if (ActiveResourceCount >= ResourceLimit)
+            while (Resources.Count > ResourceLimit)
             {
-                return;
+                var removeIndex = FindDisposableResourceIndex(protectedFrontCount);
+                if (removeIndex < protectedFrontCount)
+                {
+                    removeIndex = Resources.Count - 1;
+                }
+
+                Resources.RemoveAt(removeIndex);
+            }
+        }
+
+        private int FindDisposableResourceIndex(int protectedFrontCount = 0)
+        {
+            var emptyIndex = Resources.FindLastIndex(resource => !resource.CanUse);
+            if (emptyIndex >= protectedFrontCount)
+            {
+                return emptyIndex;
             }
 
-            var emptySlot = Resources.FindIndex(resource => !resource.CanUse);
-            if (emptySlot >= 0)
+            for (var disposableStage = 0; disposableStage <= 3; disposableStage++)
             {
-                Resources[emptySlot] = new MergeResource(family, stage);
-                return;
+                var index = Resources.FindLastIndex(resource =>
+                    resource.CanUse &&
+                    resource.Stage == disposableStage &&
+                    resource.Family != ResourceFamily.Sugar);
+                if (index >= protectedFrontCount)
+                {
+                    return index;
+                }
             }
 
-            if (Resources.Count < ResourceLimit)
-            {
-                Resources.Add(new MergeResource(family, stage));
-            }
+            return Resources.FindLastIndex(resource => resource.CanUse);
         }
 
         private void NotifyChanged()

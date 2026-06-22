@@ -16,6 +16,7 @@ namespace Team3Project.UI
         private CanvasGroup canvasGroup;
         private Transform startParent;
         private Vector2 startPosition;
+        private Vector2 startScreenPosition;
         private bool isDragging;
         private Text labelText;
         private Coroutine popRoutine;
@@ -117,6 +118,7 @@ namespace Team3Project.UI
 
             startParent = transform.parent;
             startPosition = rectTransform.anchoredPosition;
+            startScreenPosition = Mouse.current == null ? Vector2.zero : Mouse.current.position.ReadValue();
             canvasGroup.blocksRaycasts = false;
             transform.SetParent(canvas.transform, true);
             isDragging = true;
@@ -131,6 +133,12 @@ namespace Team3Project.UI
 
             canvasGroup.blocksRaycasts = true;
             isDragging = false;
+            if ((screenPosition - startScreenPosition).sqrMagnitude < 64f)
+            {
+                ReturnToStart();
+                return;
+            }
+
             DropOrReturn(screenPosition);
         }
 
@@ -242,6 +250,12 @@ namespace Team3Project.UI
 
             Configure(resource.Family, resource.Stage);
             IsPlacedInOven = false;
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = 1f;
+                canvasGroup.blocksRaycasts = true;
+            }
+
             if (TryGetComponent<Image>(out var image))
             {
                 image.sprite = sprite;

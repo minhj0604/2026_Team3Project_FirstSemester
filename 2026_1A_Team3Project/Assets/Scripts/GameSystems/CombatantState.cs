@@ -15,6 +15,11 @@ namespace Team3Project.GameSystems
         public int WeaknessHitsRemaining = 3;
         public ElementType Weakness = ElementType.Berry;
         public bool IsBroken;
+        public bool ChangesFormOnWeaknessHit;
+        public bool PendingFormChange;
+        public int FormIndex;
+        public int AiTurnCount;
+        public int AttackChargeBonus;
 
         public bool IsDead => Hp <= 0;
 
@@ -29,6 +34,11 @@ namespace Team3Project.GameSystems
             WeaknessHitsRequired = Mathf.Max(0, shieldCount);
             WeaknessHitsRemaining = WeaknessHitsRequired;
             IsBroken = false;
+            ChangesFormOnWeaknessHit = false;
+            PendingFormChange = false;
+            FormIndex = 0;
+            AiTurnCount = 0;
+            AttackChargeBonus = 0;
         }
 
         public int TakeDamage(int amount)

@@ -19,6 +19,7 @@ namespace Team3Project.GameSystems
         public int BaseStage;
         public ResourceFamily ToppingFamily;
         public int ToppingStage;
+        public bool IsContaminated;
 
         public bool TargetsEnemy => EffectType is ScrollEffectType.Attack or ScrollEffectType.Debuff;
         public bool IsEmpty => string.IsNullOrEmpty(DisplayName) || DisplayName == "Empty Scroll" || DisplayName == "빈 스크롤";
@@ -51,10 +52,30 @@ namespace Team3Project.GameSystems
             var stage = Math.Max(1, baseResource.Stage);
             var power = effect switch
             {
-                ScrollEffectType.Attack => 6 + stage * 5,
-                ScrollEffectType.Guard => 5 + stage * 4,
-                ScrollEffectType.Buff => 2 + stage * 2,
-                ScrollEffectType.Debuff => 2 + stage * 2,
+                ScrollEffectType.Attack => stage switch
+                {
+                    1 => 10,
+                    2 => 22,
+                    _ => 36
+                },
+                ScrollEffectType.Guard => stage switch
+                {
+                    1 => 9,
+                    2 => 20,
+                    _ => 34
+                },
+                ScrollEffectType.Buff => stage switch
+                {
+                    1 => 3,
+                    2 => 7,
+                    _ => 12
+                },
+                ScrollEffectType.Debuff => stage switch
+                {
+                    1 => 3,
+                    2 => 7,
+                    _ => 12
+                },
                 _ => 1
             };
 
@@ -75,7 +96,8 @@ namespace Team3Project.GameSystems
                 BaseFamily = baseResource.Family,
                 BaseStage = baseResource.Stage,
                 ToppingFamily = toppingResource?.Family ?? ResourceFamily.Berry,
-                ToppingStage = toppingResource?.Stage ?? 0
+                ToppingStage = toppingResource?.Stage ?? 0,
+                IsContaminated = false
             };
         }
 

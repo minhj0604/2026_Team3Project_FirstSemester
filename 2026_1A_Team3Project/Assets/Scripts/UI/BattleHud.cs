@@ -29,6 +29,7 @@ namespace Team3Project.UI
         [SerializeField] private Button craftButton;
         [SerializeField] private Button playButton;
         [SerializeField] private Button endTurnButton;
+        [SerializeField] private Button cardResetButton;
         [SerializeField] private Image playerHealthFill;
         [SerializeField] private Image enemyHealthFill;
         [SerializeField] private Image enemyLocalHealthFill;
@@ -102,6 +103,9 @@ namespace Team3Project.UI
             craftButton?.onClick.AddListener(() => battle.CraftFirstAvailableScroll());
             playButton?.onClick.AddListener(battle.PlayFirstScroll);
             endTurnButton?.onClick.AddListener(battle.EndTurn);
+            cardResetButton = cardResetButton == null ? FindButton("Card Reset Button") : cardResetButton;
+            cardResetButton?.onClick.RemoveListener(HandleCardResetButtonClicked);
+            cardResetButton?.onClick.AddListener(HandleCardResetButtonClicked);
             resourceStorage = FindRectTransform("Resource Storage");
             EnsureFeedbackTexts();
             CacheResourceItems();
@@ -158,9 +162,10 @@ namespace Team3Project.UI
             RefreshFeedbackText();
             if (enemyIconImage != null)
             {
-                var profileSprite = battle.EnemyPose == EnemyPose.Hit && enemyHitProfileSprite != null
+                var profileSprite = ResolveEnemyInfoSprite()
+                    ?? (battle.EnemyPose == EnemyPose.Hit && enemyHitProfileSprite != null
                     ? enemyHitProfileSprite
-                    : enemyProfileSprite != null ? enemyProfileSprite : fallbackEnemyIconSprite;
+                    : enemyProfileSprite != null ? enemyProfileSprite : fallbackEnemyIconSprite);
 
                 if (profileSprite != null)
                 {
@@ -175,6 +180,52 @@ namespace Team3Project.UI
             RefreshEnemyVisuals();
             RefreshResourceItems();
             RefreshScrollItems();
+        }
+
+        private Sprite ResolveEnemyInfoSprite()
+        {
+            var prefix = GetEnemySpritePrefix();
+            if (string.IsNullOrEmpty(prefix))
+            {
+                return null;
+            }
+
+            var suffix = battle.EnemyPose == EnemyPose.Hit ? "hit" : battle.EnemyPose == EnemyPose.Attack ? "attack" : "idle";
+            return RuntimeSpriteLoader.LoadFromAssetPath("Resource", "Character Sprites", $"{prefix}_{suffix}.png");
+        }
+
+        private string GetEnemySpritePrefix()
+        {
+            if (battle == null)
+            {
+                return null;
+            }
+
+            if (battle.StageIndex == 1)
+            {
+                return "slime";
+            }
+
+            if (battle.StageIndex == 2)
+            {
+                return battle.SelectedEnemyIndex == 0 ? "strawberry_guard" : "mandarin_guard";
+            }
+
+            if (battle.StageIndex == 3 && battle.SelectedEnemyIndex > 0)
+            {
+                var enemyName = battle.SelectedEnemy?.Name ?? string.Empty;
+                if (enemyName.Contains("딸기"))
+                {
+                    return "strawberry_guard";
+                }
+
+                if (enemyName.Contains("감귤"))
+                {
+                    return "mandarin_guard";
+                }
+            }
+
+            return null;
         }
 
         private void CacheResourceItems()
@@ -218,6 +269,11 @@ namespace Team3Project.UI
             {
                 var item = resourceSlots[i];
                 if (item == null)
+                {
+                    continue;
+                }
+
+                if (item.IsDragging)
                 {
                     continue;
                 }
@@ -303,6 +359,10 @@ namespace Team3Project.UI
 
         private void RegisterKnownResourceSprites()
         {
+            RegisterResourceSprite(ResourceFamily.Marshmallow, 0, RuntimeSpriteLoader.LoadFromAssetPath("Resource", "Merge Item", "\uB9C8\uC2DC\uBA5C\uB85C.png"));
+            RegisterResourceSprite(ResourceFamily.Marshmallow, 1, RuntimeSpriteLoader.LoadFromAssetPath("Resource", "Merge Item", "\uB9C8\uC2DC\uBA5C\uB85C.png"));
+            RegisterResourceSprite(ResourceFamily.Marshmallow, 2, RuntimeSpriteLoader.LoadFromAssetPath("Resource", "Merge Item", "\uAF48\uBC30\uAE30 \uBAA8\uD615 \uB9C8\uC2DC\uBA5C\uB85C.png"));
+            RegisterResourceSprite(ResourceFamily.Marshmallow, 3, RuntimeSpriteLoader.LoadFromAssetPath("Resource", "Merge Item", "\uAF48\uBC30\uAE30 \uBAA8\uD615 \uB9C8\uC2DC\uBA5C\uB85C.png"));
             RegisterResourceSprite(ResourceFamily.Dairy, 0, dairyStage0Sprite);
             RegisterResourceSprite(ResourceFamily.Dairy, 1, dairyStage1Sprite != null ? dairyStage1Sprite : dairyStage0Sprite);
             RegisterResourceSprite(ResourceFamily.Dairy, 2, dairyStage2Sprite);
@@ -474,7 +534,14 @@ namespace Team3Project.UI
             SetButtonInteractable(mergeSugarButton, canAct);
             SetButtonInteractable(craftButton, canAct);
             SetButtonInteractable(playButton, canAct);
+            SetButtonInteractable(cardResetButton, battle != null && battle.CanEnterCardResetMode);
+            SetButtonText(cardResetButton, battle != null && battle.CardResetModeActive ? "취소" : "초기화");
             SetButtonInteractable(endTurnButton, battle != null && !battle.InputLocked && (battle.Phase == BattlePhase.PlayerTurn || battle.Phase == BattlePhase.StageClear));
+        }
+
+        private void HandleCardResetButtonClicked()
+        {
+            battle?.ToggleCardResetMode();
         }
 
         private static void SetButtonInteractable(Button button, bool value)
@@ -549,11 +616,11 @@ namespace Team3Project.UI
             root.transform.SetParent(transform, false);
 
             var rootRect = root.GetComponent<RectTransform>();
-            rootRect.anchorMin = new Vector2(1f, 1f);
-            rootRect.anchorMax = new Vector2(1f, 1f);
-            rootRect.pivot = new Vector2(1f, 1f);
+            rootRect.anchorMin = new Vector2(0.5f, 1f);
+            rootRect.anchorMax = new Vector2(0.5f, 1f);
+            rootRect.pivot = new Vector2(0.5f, 1f);
             rootRect.sizeDelta = new Vector2(260f, 54f);
-            rootRect.anchoredPosition = new Vector2(-24f, -24f);
+            rootRect.anchoredPosition = new Vector2(0f, -18f);
 
             var rootImage = root.GetComponent<Image>();
             rootImage.color = new Color(0f, 0f, 0f, 0.35f);

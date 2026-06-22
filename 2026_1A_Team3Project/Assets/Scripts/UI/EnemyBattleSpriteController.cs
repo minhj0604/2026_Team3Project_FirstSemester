@@ -2,6 +2,7 @@ using System.Collections;
 using Team3Project.GameSystems;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Team3Project.UI
@@ -20,6 +21,7 @@ namespace Team3Project.UI
 
         private RectTransform rectTransform;
         private Text targetArrow;
+        private Image formIcon;
         private Coroutine hitRoutine;
         private Coroutine attackRoutine;
         private EnemyPose lastPose = EnemyPose.Idle;
@@ -52,6 +54,7 @@ namespace Team3Project.UI
 
             rectTransform = GetComponent<RectTransform>();
             EnsureTargetArrow();
+            EnsureFormIcon();
         }
 
         private void OnEnable()
@@ -77,6 +80,26 @@ namespace Team3Project.UI
             }
         }
 
+        private void Update()
+        {
+            if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                return;
+            }
+
+            if (battle == null || rectTransform == null || !gameObject.activeInHierarchy)
+            {
+                return;
+            }
+
+            var canvas = GetComponentInParent<Canvas>();
+            var camera = canvas == null || canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            if (RectTransformUtility.RectangleContainsScreenPoint(rectTransform, Mouse.current.position.ReadValue(), camera))
+            {
+                battle.SelectEnemy(enemyIndex);
+            }
+        }
+
         private void Refresh()
         {
             if (enemyImage == null)
@@ -92,12 +115,12 @@ namespace Team3Project.UI
             var enemy = battle == null ? null : battle.GetEnemy(enemyIndex);
             var pose = battle == null ? EnemyPose.Idle : battle.GetEnemyPose(enemyIndex);
             gameObject.SetActive(battle != null && enemy != null && enemyIndex < battle.EnemyCount && !enemy.IsDead);
-            enemyImage.sprite = pose switch
+            enemyImage.sprite = ResolveEnemySprite(pose) ?? (pose switch
             {
                 EnemyPose.Attack => attackSprite,
                 EnemyPose.Hit => hitSprite,
                 _ => idleSprite
-            };
+            });
             if (pose == EnemyPose.Hit && lastPose != EnemyPose.Hit)
             {
                 PlayHitFeedback();
@@ -118,12 +141,66 @@ namespace Team3Project.UI
                 targetArrow.gameObject.SetActive(battle != null && battle.SelectedEnemyIndex == enemyIndex && gameObject.activeSelf);
             }
 
+            UpdateFormIcon(enemy);
+
             lastPose = pose;
         }
 
         public void OnPointerClick(PointerEventData eventData)
         {
             battle?.SelectEnemy(enemyIndex);
+        }
+
+        private Sprite ResolveEnemySprite(EnemyPose pose)
+        {
+            var prefix = GetEnemySpritePrefix();
+            if (string.IsNullOrEmpty(prefix))
+            {
+                return null;
+            }
+
+            var suffix = pose switch
+            {
+                EnemyPose.Attack => "attack",
+                EnemyPose.Hit => "hit",
+                _ => "idle"
+            };
+
+            return RuntimeSpriteLoader.LoadFromAssetPath("Resource", "Character Sprites", $"{prefix}_{suffix}.png");
+        }
+
+        private string GetEnemySpritePrefix()
+        {
+            if (battle == null)
+            {
+                return null;
+            }
+
+            if (battle.StageIndex == 1)
+            {
+                return "slime";
+            }
+
+            if (battle.StageIndex == 2)
+            {
+                return enemyIndex == 0 ? "strawberry_guard" : "mandarin_guard";
+            }
+
+            if (battle.StageIndex == 3 && enemyIndex > 0)
+            {
+                var enemyName = battle.GetEnemy(enemyIndex)?.Name ?? string.Empty;
+                if (enemyName.Contains("딸기"))
+                {
+                    return "strawberry_guard";
+                }
+
+                if (enemyName.Contains("감귤"))
+                {
+                    return "mandarin_guard";
+                }
+            }
+
+            return null;
         }
 
         private void EnsureTargetArrow()
@@ -139,7 +216,7 @@ namespace Team3Project.UI
             arrowRect.anchorMin = new Vector2(0.5f, 1f);
             arrowRect.anchorMax = new Vector2(0.5f, 1f);
             arrowRect.pivot = new Vector2(0.5f, 0f);
-            arrowRect.anchoredPosition = new Vector2(0f, 10f);
+            arrowRect.anchoredPosition = new Vector2(0f, 64f);
             arrowRect.sizeDelta = new Vector2(80f, 48f);
 
             targetArrow = arrowObject.GetComponent<Text>();
@@ -158,6 +235,90 @@ namespace Team3Project.UI
             var outline = arrowObject.GetComponent<Outline>();
             outline.effectColor = new Color(1f, 0.9f, 0.45f, 1f);
             outline.effectDistance = new Vector2(2f, -2f);
+        }
+
+        private void EnsureFormIcon()
+        {
+            if (formIcon != null)
+            {
+                return;
+            }
+
+            var iconObject = new GameObject("Slime Form Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Outline));
+            iconObject.transform.SetParent(transform, false);
+            var iconRect = iconObject.GetComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(0.5f, 1f);
+            iconRect.anchorMax = new Vector2(0.5f, 1f);
+            iconRect.pivot = new Vector2(0.5f, 0f);
+            iconRect.anchoredPosition = new Vector2(0f, 18f);
+            iconRect.sizeDelta = new Vector2(46f, 46f);
+
+            formIcon = iconObject.GetComponent<Image>();
+            formIcon.raycastTarget = false;
+            formIcon.preserveAspect = true;
+
+            var outline = iconObject.GetComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.65f);
+            outline.effectDistance = new Vector2(2f, -2f);
+        }
+
+        private void UpdateFormIcon(CombatantState enemy)
+        {
+            EnsureFormIcon();
+            if (formIcon == null)
+            {
+                return;
+            }
+
+            var shouldShow = enemy != null && enemy.ChangesFormOnWeaknessHit && gameObject.activeSelf;
+            formIcon.gameObject.SetActive(shouldShow);
+            if (!shouldShow)
+            {
+                return;
+            }
+
+            var formElement = FormIndexToElement(enemy.FormIndex);
+            formIcon.sprite = GetElementIcon(formElement);
+            formIcon.color = GetElementIconColor(formElement, formIcon.sprite != null);
+        }
+
+        private static ElementType FormIndexToElement(int formIndex)
+        {
+            return formIndex switch
+            {
+                1 => ElementType.PoppingCandy,
+                2 => ElementType.Marshmallow,
+                3 => ElementType.Chocolate,
+                _ => ElementType.Berry
+            };
+        }
+
+        private static Sprite GetElementIcon(ElementType element)
+        {
+            return element switch
+            {
+                ElementType.Berry => RuntimeSpriteLoader.LoadFromAssetPath("Resource", "Merge Item", "\uB538\uAE30.png"),
+                ElementType.Chocolate => RuntimeSpriteLoader.LoadFromAssetPath("Resource", "Merge Item", "\uCD08\uCF5C\uB9BF \uCCAD\uD06C.png"),
+                ElementType.Marshmallow => RuntimeSpriteLoader.LoadFromAssetPath("Resource", "Merge Item", "\uB9C8\uC2DC\uBA5C\uB85C.png"),
+                _ => null
+            };
+        }
+
+        private static Color GetElementIconColor(ElementType element, bool hasSprite)
+        {
+            if (hasSprite)
+            {
+                return Color.white;
+            }
+
+            return element switch
+            {
+                ElementType.PoppingCandy => new Color(0.55f, 0.86f, 1f, 1f),
+                ElementType.Chocolate => new Color(0.72f, 0.55f, 0.42f, 1f),
+                ElementType.Marshmallow => new Color(0.92f, 0.92f, 0.88f, 1f),
+                ElementType.Berry => new Color(1f, 0.62f, 0.72f, 1f),
+                _ => Color.clear
+            };
         }
 
         private void PlayHitFeedback()

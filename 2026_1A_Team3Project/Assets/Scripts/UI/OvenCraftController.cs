@@ -48,6 +48,8 @@ namespace Team3Project.UI
 
         private void Awake()
         {
+            ApplyOvenSprites();
+
             if (craftedScrollText == null)
             {
                 var resultObject = GameObject.Find("Crafted Scroll Result");
@@ -68,6 +70,59 @@ namespace Team3Project.UI
             }
 
             CacheOvenAnimationTargets();
+        }
+
+        private static void ApplyOvenSprites()
+        {
+            SetImageSprite("Oven Visual Panel", RuntimeSpriteLoader.LoadFromAssetPath("Resource", "oven", "\uC624\uBE10.png"));
+            SetImageSprite("Oven Lid Visual", RuntimeSpriteLoader.LoadFromAssetPath("Resource", "oven", "\uC624\uBE10 \uB69C\uAED1.png"));
+            MakeDropSlotInvisible("Oven Base Slot Visual");
+            MakeDropSlotInvisible("Oven Topping Slot Visual");
+            HideText("Oven Base Label");
+            HideText("Oven Topping Label");
+            HideText("Oven Plus Label");
+        }
+
+        private static void SetImageSprite(string objectName, Sprite sprite)
+        {
+            if (sprite == null)
+            {
+                return;
+            }
+
+            var target = GameObject.Find(objectName);
+            if (target == null || !target.TryGetComponent<Image>(out var image))
+            {
+                return;
+            }
+
+            image.sprite = sprite;
+            image.color = Color.white;
+            image.preserveAspect = true;
+        }
+
+        private static void MakeDropSlotInvisible(string objectName)
+        {
+            var target = GameObject.Find(objectName);
+            if (target == null || !target.TryGetComponent<Image>(out var image))
+            {
+                return;
+            }
+
+            image.color = new Color(1f, 1f, 1f, 0f);
+            image.raycastTarget = true;
+        }
+
+        private static void HideText(string objectName)
+        {
+            var target = GameObject.Find(objectName);
+            if (target == null || !target.TryGetComponent<Text>(out var text))
+            {
+                return;
+            }
+
+            text.color = new Color(text.color.r, text.color.g, text.color.b, 0f);
+            text.raycastTarget = false;
         }
 
         private void Update()
@@ -205,9 +260,9 @@ namespace Team3Project.UI
                 craftedScrollText.text = $"{card.DisplayName}\n비용 {card.Cost} / 위력 {card.Power}";
             }
 
-            baseSlot.ConsumePlacedResource();
-            toppingSlot?.ConsumePlacedResource();
-            scrollSlot?.ReleasePlacedScroll();
+            baseSlot.Clear();
+            toppingSlot?.Clear();
+            scrollSlot?.Clear();
         }
 
         private void TryAutoBake()
@@ -226,6 +281,7 @@ namespace Team3Project.UI
         private IEnumerator BakeDirectAfterSquish()
         {
             isBaking = true;
+            SetLidOpen(false);
             SetPlacedObjectsVisible(false);
             PlayOvenSquish();
             yield return new WaitForSeconds(0.78f);
@@ -268,8 +324,6 @@ namespace Team3Project.UI
             }
 
             directScrollItem.ReturnToOriginalSlot();
-            directBaseItem?.ConsumeFromOven();
-            directToppingItem?.ConsumeFromOven();
             SetResult($"{card.DisplayName}\n비용 {card.Cost} / 위력 {card.Power}");
             SetLidOpen(false);
 
@@ -388,7 +442,7 @@ namespace Team3Project.UI
                 return;
             }
 
-            var shouldOpen = directScrollItem != null || IsEmptyScrollDraggingOver();
+            var shouldOpen = !isBaking && (directScrollItem != null || IsEmptyScrollDraggingOver());
             var targetPosition = shouldOpen ? openLidPosition : closedLidPosition;
             ovenLid.anchoredPosition = Vector2.Lerp(ovenLid.anchoredPosition, targetPosition, Time.deltaTime * 9f);
             ovenLid.localScale = Vector3.Lerp(ovenLid.localScale, closedLidScale, Time.deltaTime * 9f);

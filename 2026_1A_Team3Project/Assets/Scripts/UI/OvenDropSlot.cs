@@ -56,6 +56,11 @@ namespace Team3Project.UI
             }
 
             var resource = item.Resource;
+            if (resource.Stage <= 0)
+            {
+                return;
+            }
+
             if (slotKind == SlotKind.Base && resource.Role != ResourceRole.Base)
             {
                 return;
@@ -90,6 +95,11 @@ namespace Team3Project.UI
             }
 
             var resource = item.Resource;
+            if (resource.Stage <= 0)
+            {
+                return false;
+            }
+
             if (slotKind == SlotKind.Base && resource.Role != ResourceRole.Base)
             {
                 return false;

@@ -242,15 +242,15 @@ namespace Team3Project.UI
             hasCraftedCard = true;
             if (TryGetComponent<Image>(out var image))
             {
-                image.color = GetScrollColor(card.ToppingFamily);
+                image.color = card.IsContaminated ? new Color(0.38f, 0.72f, 0.28f, 1f) : GetScrollColor(card.ToppingFamily);
             }
 
             EnsureScrollOutline();
             if (scrollOutline != null)
             {
                 scrollOutline.enabled = true;
-                scrollOutline.effectColor = GetScrollOutlineColor(card.ToppingFamily);
-                scrollOutline.effectDistance = new Vector2(3f, -3f);
+                scrollOutline.effectColor = card.IsContaminated ? new Color(0.14f, 0.38f, 0.1f, 1f) : GetScrollOutlineColor(card.ToppingFamily);
+                scrollOutline.effectDistance = card.IsContaminated ? new Vector2(5f, -5f) : new Vector2(3f, -3f);
             }
 
             EnsureCardText();
@@ -259,8 +259,9 @@ namespace Team3Project.UI
             SetIngredientIcons(card);
             if (cardText != null)
             {
-                cardText.text = $"{card.DisplayName}\n비용 {card.Cost}\n위력 {card.Power}";
-                cardText.color = new Color(0.15f, 0.08f, 0.03f, 1f);
+                var statusLine = card.IsContaminated ? "\n오염" : string.Empty;
+                cardText.text = $"{card.DisplayName}{statusLine}\n비용 {card.Cost}\n위력 {card.Power}";
+                cardText.color = card.IsContaminated ? new Color(0.03f, 0.12f, 0.03f, 1f) : new Color(0.15f, 0.08f, 0.03f, 1f);
             }
         }
 
@@ -364,6 +365,17 @@ namespace Team3Project.UI
             var battle = FindFirstObjectByType<BattleController>();
             if (battle == null || battle.InputLocked || battle.Phase != BattlePhase.PlayerTurn)
             {
+                return;
+            }
+
+            if (battle.CardResetModeActive)
+            {
+                if (battle.TryResetCardById(boundCardId))
+                {
+                    ReturnToOriginalSlot();
+                    FindFirstObjectByType<BattleHud>()?.Refresh();
+                }
+
                 return;
             }
 
