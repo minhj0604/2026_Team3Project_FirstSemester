@@ -29,6 +29,13 @@ namespace Team3Project.UI
                 || Sprites.TryGetValue(Key(resource.Family, -1), out sprite);
         }
 
+        public static Color GetTint(MergeResource resource)
+        {
+            return resource.Family == ResourceFamily.Egg && resource.Stage >= 3
+                ? new Color(1f, 0.88f, 0.36f, 1f)
+                : Color.white;
+        }
+
         private static string Key(ResourceFamily family, int stage)
         {
             return $"{(int)family}:{stage}";

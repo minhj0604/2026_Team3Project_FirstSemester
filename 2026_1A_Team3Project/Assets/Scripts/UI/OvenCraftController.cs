@@ -18,6 +18,9 @@ namespace Team3Project.UI
         private DragScrollItem directScrollItem;
         private int directBaseIndex = -1;
         private int directToppingIndex = -1;
+        private Transform directBaseAnchor;
+        private Transform directToppingAnchor;
+        private Transform directScrollAnchor;
 
         public void Configure(OvenDropSlot baseDropSlot, OvenDropSlot toppingDropSlot, Text resultText)
         {
@@ -232,16 +235,49 @@ namespace Team3Project.UI
 
         private void PlaceInOven(Transform target, ResourceRole? role)
         {
-            target.SetParent(transform, false);
+            var anchor = GetPlacementAnchor(role);
+            target.SetParent(anchor, false);
             if (target.TryGetComponent<RectTransform>(out var rect))
             {
-                rect.anchoredPosition = role switch
-                {
-                    ResourceRole.Base => new Vector2(-72f, 18f),
-                    ResourceRole.Topping => new Vector2(72f, 18f),
-                    _ => new Vector2(0f, -54f)
-                };
+                rect.anchoredPosition = anchor == transform ? GetFallbackPosition(role) : Vector2.zero;
             }
+        }
+
+        private static Vector2 GetFallbackPosition(ResourceRole? role)
+        {
+            return role switch
+            {
+                ResourceRole.Base => new Vector2(-72f, 18f),
+                ResourceRole.Topping => new Vector2(72f, 18f),
+                _ => new Vector2(0f, -54f)
+            };
+        }
+
+        private Transform GetPlacementAnchor(ResourceRole? role)
+        {
+            if (role == ResourceRole.Base)
+            {
+                return baseSlot != null ? baseSlot.transform : FindAnchor("Oven Base Slot Visual", ref directBaseAnchor);
+            }
+
+            if (role == ResourceRole.Topping)
+            {
+                return toppingSlot != null ? toppingSlot.transform : FindAnchor("Oven Topping Slot Visual", ref directToppingAnchor);
+            }
+
+            return scrollSlot != null ? scrollSlot.transform : FindAnchor("Oven Lid Visual", ref directScrollAnchor);
+        }
+
+        private Transform FindAnchor(string objectName, ref Transform cachedAnchor)
+        {
+            if (cachedAnchor != null)
+            {
+                return cachedAnchor;
+            }
+
+            var found = GameObject.Find(objectName);
+            cachedAnchor = found == null ? transform : found.transform;
+            return cachedAnchor;
         }
 
         private void SetResult(string value)

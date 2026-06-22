@@ -10,6 +10,8 @@ namespace Team3Project.UI
     {
         [SerializeField] private BattleController battle;
         [SerializeField] private Image playerImage;
+        [SerializeField] private Sprite defaultSprite;
+        [SerializeField] private Sprite hitSprite;
         [SerializeField] private Camera targetCamera;
         [SerializeField] private RectTransform screenShakeRoot;
         [SerializeField] private float feedbackDuration = 0.35f;
@@ -55,6 +57,11 @@ namespace Team3Project.UI
                 playerImage = GetComponent<Image>();
             }
 
+            if (defaultSprite == null && playerImage != null)
+            {
+                defaultSprite = playerImage.sprite;
+            }
+
             if (targetCamera == null)
             {
                 targetCamera = Camera.main;
@@ -98,7 +105,19 @@ namespace Team3Project.UI
             CacheReferences();
             var cameraTransform = targetCamera == null ? null : targetCamera.transform;
             var originalCameraPosition = cameraTransform == null ? Vector3.zero : cameraTransform.localPosition;
-            var originalCanvasPosition = screenShakeRoot == null ? Vector2.zero : screenShakeRoot.anchoredPosition;
+            var originalSprite = playerImage == null ? null : playerImage.sprite;
+            var shakeRects = GetShakeRects();
+            var originalShakePositions = new Vector2[shakeRects.Length];
+            for (var i = 0; i < shakeRects.Length; i++)
+            {
+                originalShakePositions[i] = shakeRects[i].anchoredPosition;
+            }
+
+            if (playerImage != null && hitSprite != null)
+            {
+                playerImage.sprite = hitSprite;
+            }
+
             var elapsed = 0f;
 
             while (elapsed < feedbackDuration)
@@ -111,9 +130,10 @@ namespace Team3Project.UI
                     cameraTransform.localPosition = originalCameraPosition + new Vector3(shake, 0f, 0f);
                 }
 
-                if (screenShakeRoot != null)
+                var canvasShake = shake * canvasShakeDistance / Mathf.Max(cameraShakeDistance, 0.01f);
+                for (var i = 0; i < shakeRects.Length; i++)
                 {
-                    screenShakeRoot.anchoredPosition = originalCanvasPosition + new Vector2(shake * canvasShakeDistance / Mathf.Max(cameraShakeDistance, 0.01f), 0f);
+                    shakeRects[i].anchoredPosition = originalShakePositions[i] + new Vector2(canvasShake, 0f);
                 }
 
                 if (playerImage != null)
@@ -129,17 +149,53 @@ namespace Team3Project.UI
                 cameraTransform.localPosition = originalCameraPosition;
             }
 
-            if (screenShakeRoot != null)
+            for (var i = 0; i < shakeRects.Length; i++)
             {
-                screenShakeRoot.anchoredPosition = originalCanvasPosition;
+                shakeRects[i].anchoredPosition = originalShakePositions[i];
             }
 
             if (playerImage != null)
             {
+                playerImage.sprite = defaultSprite != null ? defaultSprite : originalSprite;
                 playerImage.color = Color.white;
             }
 
             feedbackRoutine = null;
+        }
+
+        private RectTransform[] GetShakeRects()
+        {
+            if (screenShakeRoot == null)
+            {
+                return new RectTransform[0];
+            }
+
+            var rects = new RectTransform[screenShakeRoot.childCount];
+            var count = 0;
+            for (var i = 0; i < screenShakeRoot.childCount; i++)
+            {
+                var child = screenShakeRoot.GetChild(i) as RectTransform;
+                if (child == null)
+                {
+                    continue;
+                }
+
+                rects[count] = child;
+                count++;
+            }
+
+            if (count == rects.Length)
+            {
+                return rects;
+            }
+
+            var trimmed = new RectTransform[count];
+            for (var i = 0; i < count; i++)
+            {
+                trimmed[i] = rects[i];
+            }
+
+            return trimmed;
         }
     }
 }

@@ -20,9 +20,10 @@ namespace Team3Project.GameSystems
         [SerializeField] private int baseMaxCost = 4;
         [SerializeField] private int maxCostCap = 10;
         [SerializeField] private int cardsDrawnPerTurn = 3;
+        [SerializeField] private int maxHandSize = 5;
         [SerializeField] private int resourcesPerTurn = 10;
         [SerializeField] private int maxResources = 36;
-        [SerializeField] private int startingEmptyScrollCount = 18;
+        [SerializeField] private int startingEmptyScrollCount = 15;
 
         public event Action StateChanged;
 
@@ -41,6 +42,11 @@ namespace Team3Project.GameSystems
         public int MaxResources => ResourceLimit;
         public int ActiveResourceCount => Resources.FindAll(resource => resource.CanUse).Count;
         public int VisibleHandCount => Hand.FindAll(card => card != null).Count;
+        public int MaxHandSize => maxHandSize;
+        public int DrawDeckCount => drawDeck.Count;
+        public int DiscardCount => DiscardPile.Count;
+        public int EnemyIntentDamage => Enemy.IsBroken ? 0 : Mathf.Max(1, 8 + Enemy.Strength);
+        public string EnemyIntentText => Enemy.IsBroken ? "회복" : $"공격 {EnemyIntentDamage}";
         public string LastLog { get; private set; } = string.Empty;
         public EnemyPose EnemyPose { get; private set; } = EnemyPose.Idle;
         public int PlayerHitPulse { get; private set; }
@@ -48,6 +54,7 @@ namespace Team3Project.GameSystems
         private readonly Queue<ScrollCard> drawDeck = new();
         private static readonly Dictionary<int, List<ScrollCard>> ChapterDrawDecks = new();
         private static readonly Dictionary<int, List<ScrollCard>> ChapterDiscardDecks = new();
+        private static readonly Dictionary<int, List<ScrollCard>> ChapterHandCards = new();
         private Coroutine enemyPoseRoutine;
         private int ResourceLimit => maxResources > 0 ? maxResources : 36;
 
@@ -55,6 +62,7 @@ namespace Team3Project.GameSystems
         {
             ChapterDrawDecks.Remove(chapter);
             ChapterDiscardDecks.Remove(chapter);
+            ChapterHandCards.Remove(chapter);
             PlayerPrefs.SetInt($"{ClearedStageKeyPrefix}{chapter}", 0);
             PlayerPrefs.SetInt(SelectedChapterKey, chapter);
             PlayerPrefs.SetInt(SelectedStageKey, 1);
@@ -414,15 +422,6 @@ namespace Team3Project.GameSystems
                 return;
             }
 
-            foreach (var card in Hand)
-            {
-                if (card != null)
-                {
-                    DiscardPile.Add(card);
-                }
-            }
-
-            Hand.Clear();
             SaveChapterDeckState();
             Phase = BattlePhase.EnemyTurn;
             ResolveEnemyTurn();
@@ -554,23 +553,39 @@ namespace Team3Project.GameSystems
         {
             drawDeck.Clear();
             DiscardPile.Clear();
+            Hand.Clear();
 
-            if (!ChapterDrawDecks.TryGetValue(chapterIndex, out var savedDrawDeck) || savedDrawDeck.Count == 0)
+            var hasSavedDraw = ChapterDrawDecks.TryGetValue(chapterIndex, out var savedDrawDeck);
+            var hasSavedDiscard = ChapterDiscardDecks.TryGetValue(chapterIndex, out var savedDiscardDeck);
+            var hasSavedHand = ChapterHandCards.TryGetValue(chapterIndex, out var savedHand);
+            if (!hasSavedDraw && !hasSavedDiscard && !hasSavedHand)
             {
                 savedDrawDeck = BuildEmptyScrollDeck();
                 ChapterDrawDecks[chapterIndex] = savedDrawDeck;
+                hasSavedDraw = true;
             }
 
-            foreach (var card in savedDrawDeck)
+            if (hasSavedDraw)
             {
-                drawDeck.Enqueue(CloneCard(card));
+                foreach (var card in savedDrawDeck)
+                {
+                    drawDeck.Enqueue(CloneCard(card));
+                }
             }
 
-            if (ChapterDiscardDecks.TryGetValue(chapterIndex, out var savedDiscardDeck))
+            if (hasSavedDiscard)
             {
                 foreach (var card in savedDiscardDeck)
                 {
                     DiscardPile.Add(CloneCard(card));
+                }
+            }
+
+            if (hasSavedHand)
+            {
+                foreach (var card in savedHand)
+                {
+                    Hand.Add(CloneCard(card));
                 }
             }
         }
@@ -603,22 +618,19 @@ namespace Team3Project.GameSystems
         private void SaveChapterDeckState()
         {
             ChapterDrawDecks[chapterIndex] = new List<ScrollCard>(CloneCards(drawDeck));
-            var persistentDiscard = new List<ScrollCard>(CloneCards(DiscardPile));
-            foreach (var card in Hand)
-            {
-                if (card != null && !card.IsEmpty)
-                {
-                    persistentDiscard.Add(CloneCard(card));
-                }
-            }
-
-            ChapterDiscardDecks[chapterIndex] = persistentDiscard;
+            ChapterDiscardDecks[chapterIndex] = new List<ScrollCard>(CloneCards(DiscardPile));
+            ChapterHandCards[chapterIndex] = new List<ScrollCard>(CloneCards(Hand));
         }
 
         private IEnumerable<ScrollCard> CloneCards(IEnumerable<ScrollCard> cards)
         {
             foreach (var card in cards)
             {
+                if (card == null)
+                {
+                    continue;
+                }
+
                 yield return CloneCard(card);
             }
         }
@@ -638,6 +650,7 @@ namespace Team3Project.GameSystems
                 Power = card.Power,
                 Cost = card.Cost,
                 DisplayName = card.DisplayName,
+                UpgradeLevel = card.UpgradeLevel,
                 BaseFamily = card.BaseFamily,
                 BaseStage = card.BaseStage,
                 ToppingFamily = card.ToppingFamily,
@@ -683,8 +696,18 @@ namespace Team3Project.GameSystems
         {
             for (var i = 0; i < count; i++)
             {
+                if (VisibleHandCount >= maxHandSize)
+                {
+                    break;
+                }
+
                 if (drawDeck.Count == 0)
                 {
+                    if (HasEmptyScrollInHand())
+                    {
+                        break;
+                    }
+
                     RefillDrawDeckFromDiscard();
                 }
 
@@ -701,6 +724,7 @@ namespace Team3Project.GameSystems
 
         private void AddCardToHand(ScrollCard card)
         {
+            TrimHandSlots();
             var emptySlot = Hand.FindIndex(item => item == null);
             if (emptySlot >= 0)
             {
@@ -708,23 +732,41 @@ namespace Team3Project.GameSystems
                 return;
             }
 
-            Hand.Add(card);
+            if (Hand.Count < maxHandSize)
+            {
+                Hand.Add(card);
+            }
         }
 
         private void RefillDrawDeckFromDiscard()
         {
             if (DiscardPile.Count == 0)
             {
-                BuildStarterDeck();
                 return;
             }
 
             foreach (var card in DiscardPile)
             {
-                drawDeck.Enqueue(card);
+                var loopedCard = CloneCard(card);
+                loopedCard.UpgradeFromLoop();
+                drawDeck.Enqueue(loopedCard);
             }
 
             DiscardPile.Clear();
+            LastLog = "버림덱 회수";
+        }
+
+        private bool HasEmptyScrollInHand()
+        {
+            return Hand.Exists(card => card != null && card.IsEmpty);
+        }
+
+        private void TrimHandSlots()
+        {
+            while (Hand.Count > maxHandSize && Hand[Hand.Count - 1] == null)
+            {
+                Hand.RemoveAt(Hand.Count - 1);
+            }
         }
 
         private void AddTurnResources()

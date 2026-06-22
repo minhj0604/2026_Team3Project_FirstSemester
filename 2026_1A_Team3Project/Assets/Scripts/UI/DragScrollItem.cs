@@ -20,6 +20,7 @@ namespace Team3Project.UI
         private Text cardText;
         private Image baseIcon;
         private Image toppingIcon;
+        private Outline scrollOutline;
         private int boundCardId = -1;
 
         public bool IsEmptyScroll => !hasCraftedCard;
@@ -201,6 +202,14 @@ namespace Team3Project.UI
                 image.color = GetScrollColor(card.ToppingFamily);
             }
 
+            EnsureScrollOutline();
+            if (scrollOutline != null)
+            {
+                scrollOutline.enabled = true;
+                scrollOutline.effectColor = GetScrollOutlineColor(card.ToppingFamily);
+                scrollOutline.effectDistance = new Vector2(3f, -3f);
+            }
+
             EnsureCardText();
             ConfigureCardTextLayout();
             EnsureIngredientIcons();
@@ -266,6 +275,11 @@ namespace Team3Project.UI
                 image.color = Color.white;
             }
 
+            if (scrollOutline != null)
+            {
+                scrollOutline.enabled = false;
+            }
+
             if (cardText != null)
             {
                 cardText.text = string.Empty;
@@ -302,6 +316,19 @@ namespace Team3Project.UI
             cardText.resizeTextMinSize = 8;
             cardText.resizeTextMaxSize = 14;
             cardText.raycastTarget = false;
+        }
+
+        private void EnsureScrollOutline()
+        {
+            if (scrollOutline == null)
+            {
+                scrollOutline = GetComponent<Outline>();
+            }
+
+            if (scrollOutline == null)
+            {
+                scrollOutline = gameObject.AddComponent<Outline>();
+            }
         }
 
         private void ConfigureCardTextLayout()
@@ -371,7 +398,7 @@ namespace Team3Project.UI
             if (MergeResourceVisuals.TryGetSprite(resource, out var sprite))
             {
                 icon.sprite = sprite;
-                icon.color = Color.white;
+                icon.color = MergeResourceVisuals.GetTint(resource);
             }
             else
             {
@@ -396,9 +423,21 @@ namespace Team3Project.UI
             {
                 ResourceFamily.Berry => new Color(1f, 0.75f, 0.82f, 1f),
                 ResourceFamily.Chocolate => new Color(0.78f, 0.62f, 0.48f, 1f),
-                ResourceFamily.Marshmallow => new Color(0.9f, 0.9f, 0.86f, 1f),
+                ResourceFamily.Marshmallow => new Color(0.96f, 0.96f, 0.91f, 1f),
                 ResourceFamily.PoppingCandy => new Color(0.72f, 0.9f, 1f, 1f),
                 _ => new Color(1f, 0.92f, 0.62f, 1f)
+            };
+        }
+
+        private static Color GetScrollOutlineColor(ResourceFamily family)
+        {
+            return family switch
+            {
+                ResourceFamily.Berry => new Color(0.88f, 0.42f, 0.55f, 1f),
+                ResourceFamily.Chocolate => new Color(0.48f, 0.34f, 0.24f, 1f),
+                ResourceFamily.Marshmallow => new Color(0.6f, 0.6f, 0.56f, 1f),
+                ResourceFamily.PoppingCandy => new Color(0.35f, 0.67f, 0.86f, 1f),
+                _ => new Color(0.78f, 0.62f, 0.34f, 1f)
             };
         }
 

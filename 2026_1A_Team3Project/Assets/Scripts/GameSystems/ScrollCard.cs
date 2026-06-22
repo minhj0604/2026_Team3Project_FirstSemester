@@ -14,6 +14,7 @@ namespace Team3Project.GameSystems
         public int Power;
         public int Cost;
         public string DisplayName;
+        public int UpgradeLevel;
         public ResourceFamily BaseFamily;
         public int BaseStage;
         public ResourceFamily ToppingFamily;
@@ -70,11 +71,24 @@ namespace Team3Project.GameSystems
                 Power = power,
                 Cost = Mathf.Clamp(stage, 1, 3),
                 DisplayName = BuildName(effect, element, stage),
+                UpgradeLevel = 0,
                 BaseFamily = baseResource.Family,
                 BaseStage = baseResource.Stage,
                 ToppingFamily = toppingResource?.Family ?? ResourceFamily.Berry,
                 ToppingStage = toppingResource?.Stage ?? 0
             };
+        }
+
+        public void UpgradeFromLoop()
+        {
+            if (IsEmpty)
+            {
+                return;
+            }
+
+            UpgradeLevel++;
+            Power += 2;
+            DisplayName = $"{BaseName(DisplayName)} +{UpgradeLevel}";
         }
 
         private static string BuildName(ScrollEffectType effect, ElementType element, int stage)
@@ -105,6 +119,17 @@ namespace Team3Project.GameSystems
                 ElementType.PoppingCandy => "팝핑",
                 _ => string.Empty
             };
+        }
+
+        private static string BaseName(string displayName)
+        {
+            if (string.IsNullOrEmpty(displayName))
+            {
+                return string.Empty;
+            }
+
+            var upgradeIndex = displayName.LastIndexOf(" +", StringComparison.Ordinal);
+            return upgradeIndex < 0 ? displayName : displayName.Substring(0, upgradeIndex);
         }
     }
 }

@@ -237,7 +237,7 @@ namespace Team3Project.UI
             if (TryGetComponent<Image>(out var image))
             {
                 image.sprite = sprite;
-                image.color = sprite == null ? GetFallbackColor(resource.Family) : Color.white;
+                image.color = sprite == null ? GetFallbackColor(resource.Family) : MergeResourceVisuals.GetTint(resource);
             }
 
             if (startParent != null && rectTransform != null)

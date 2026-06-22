@@ -106,7 +106,7 @@ namespace Team3Project.GameSystems
             ResourceFamily.Egg => Stage switch
             {
                 0 => "날계란",
-                1 => "깐 계란",
+                1 => "날계란",
                 2 => "머랭",
                 _ => "커스터드"
             },
