@@ -1,7 +1,6 @@
 using System.IO;
 using Team3Project.Dialogue;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -16,6 +15,15 @@ namespace Team3Project.UI
     {
         private const string SelectedChapterKey = "Team3.SelectedChapter";
         private const string ClearedStageKeyPrefix = "Team3.ClearedStage.";
+        private static readonly Vector2Int[] ResolutionOptions =
+        {
+            new Vector2Int(1280, 720),
+            new Vector2Int(1600, 900),
+            new Vector2Int(1920, 1080)
+        };
+
+        private const string ResolutionIndexKey = "Team3.Settings.ResolutionIndex";
+        private static int currentHelpPage;
 
         public enum ButtonAction
         {
@@ -29,43 +37,17 @@ namespace Team3Project.UI
         [SerializeField] private string scenePath;
 
         private Button button;
-        private RectTransform rectTransform;
         private int lastExecuteFrame = -1;
 
         private void Awake()
         {
             button = GetComponent<Button>();
-            rectTransform = GetComponent<RectTransform>();
             button.onClick.AddListener(Execute);
         }
 
         private void Start()
         {
             RefreshNamedButtonState();
-        }
-
-        private void Update()
-        {
-            if (DialogueManager.HasActiveDialogue())
-            {
-                return;
-            }
-
-            if (Mouse.current == null || !Mouse.current.leftButton.wasPressedThisFrame)
-            {
-                return;
-            }
-
-            if (button == null || !button.IsActive() || !button.interactable || rectTransform == null)
-            {
-                return;
-            }
-
-            var mousePosition = Mouse.current.position.ReadValue();
-            if (RectTransformUtility.RectangleContainsScreenPoint(rectTransform, mousePosition))
-            {
-                button.onClick.Invoke();
-            }
         }
 
         private void Execute()
@@ -129,11 +111,85 @@ namespace Team3Project.UI
                 return true;
             }
 
+            if (TryExecutePopupButton(activeScene))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryExecutePopupButton(string activeScene)
+        {
+            if (activeScene == "TitleScene")
+            {
+                if (name == "Settings Button")
+                {
+                    SetPanelActive("Settings Panel", true);
+                    RefreshSettingsLabels();
+                    return true;
+                }
+
+                if (name == "Settings Close Button")
+                {
+                    SetPanelActive("Settings Panel", false);
+                    return true;
+                }
+
+                if (name == "Resolution Previous Button")
+                {
+                    ChangeResolution(-1);
+                    return true;
+                }
+
+                if (name == "Resolution Next Button")
+                {
+                    ChangeResolution(1);
+                    return true;
+                }
+
+                if (name == "Fullscreen Toggle Button")
+                {
+                    Screen.fullScreen = !Screen.fullScreen;
+                    RefreshSettingsLabels();
+                    return true;
+                }
+            }
+
+            if (activeScene == "BattleScene")
+            {
+                if (name == "Help Button")
+                {
+                    SetPanelActive("Battle Help Panel", true);
+                    ShowHelpPage(0);
+                    return true;
+                }
+
+                if (name == "Help Close Button")
+                {
+                    SetPanelActive("Battle Help Panel", false);
+                    return true;
+                }
+
+                if (name == "Help Previous Page Button")
+                {
+                    ShowHelpPage(currentHelpPage - 1);
+                    return true;
+                }
+
+                if (name == "Help Next Page Button")
+                {
+                    ShowHelpPage(currentHelpPage + 1);
+                    return true;
+                }
+            }
+
             return false;
         }
 
         private void RefreshNamedButtonState()
         {
+            RefreshSettingsLabels();
             if (button == null || SceneManager.GetActiveScene().name != "StageMapScene" || !TryGetStageFromName(name, out var stage))
             {
                 return;
@@ -181,6 +237,96 @@ namespace Team3Project.UI
         {
             var clearedStage = PlayerPrefs.GetInt($"{ClearedStageKeyPrefix}{chapter}", 0);
             return Mathf.Clamp(clearedStage + 1, 1, 3);
+        }
+
+        private static void ChangeResolution(int direction)
+        {
+            var index = Mathf.Clamp(PlayerPrefs.GetInt(ResolutionIndexKey, 2) + direction, 0, ResolutionOptions.Length - 1);
+            PlayerPrefs.SetInt(ResolutionIndexKey, index);
+            PlayerPrefs.Save();
+
+            var resolution = ResolutionOptions[index];
+            Screen.SetResolution(resolution.x, resolution.y, Screen.fullScreen);
+            RefreshSettingsLabels();
+        }
+
+        private static void RefreshSettingsLabels()
+        {
+            var index = Mathf.Clamp(PlayerPrefs.GetInt(ResolutionIndexKey, 2), 0, ResolutionOptions.Length - 1);
+            var resolution = ResolutionOptions[index];
+            SetNamedText("Resolution Value Text", $"{resolution.x} x {resolution.y}");
+            SetNamedText("Fullscreen Value Text", Screen.fullScreen ? "\uC804\uCCB4\uD654\uBA74 ON" : "\uC804\uCCB4\uD654\uBA74 OFF");
+        }
+
+        private static void ShowHelpPage(int page)
+        {
+            currentHelpPage = Mathf.Clamp(page, 0, 1);
+            SetPanelActive("Help Body Text", currentHelpPage == 0);
+            SetPanelActive("Help Resource Page", currentHelpPage == 1);
+            SetPanelActive("Help Previous Page Button", currentHelpPage > 0);
+            SetPanelActive("Help Next Page Button", currentHelpPage < 1);
+            SetNamedText("Help Page Indicator Text", $"{currentHelpPage + 1} / 2");
+        }
+
+        private static void SetPanelActive(string objectName, bool active)
+        {
+            var panel = GameObject.Find(objectName);
+            if (panel == null)
+            {
+                foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    var found = FindInactiveChild(root.transform, objectName);
+                    if (found != null)
+                    {
+                        panel = found.gameObject;
+                        break;
+                    }
+                }
+            }
+
+            panel?.SetActive(active);
+        }
+
+        private static Transform FindInactiveChild(Transform root, string objectName)
+        {
+            if (root.name == objectName)
+            {
+                return root;
+            }
+
+            for (var i = 0; i < root.childCount; i++)
+            {
+                var found = FindInactiveChild(root.GetChild(i), objectName);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
+        private static void SetNamedText(string objectName, string value)
+        {
+            var target = GameObject.Find(objectName);
+            if (target == null)
+            {
+                foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
+                {
+                    var found = FindInactiveChild(root.transform, objectName);
+                    if (found != null)
+                    {
+                        target = found.gameObject;
+                        break;
+                    }
+                }
+            }
+
+            var text = target == null ? null : target.GetComponent<Text>();
+            if (text != null)
+            {
+                text.text = value;
+            }
         }
 
         private void LoadTargetScene()

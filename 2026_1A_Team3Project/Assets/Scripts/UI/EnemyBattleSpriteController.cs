@@ -78,6 +78,11 @@ namespace Team3Project.UI
             {
                 battle.StateChanged -= Refresh;
             }
+
+            if (targetArrow != null)
+            {
+                targetArrow.gameObject.SetActive(false);
+            }
         }
 
         private void Update()
@@ -207,6 +212,15 @@ namespace Team3Project.UI
         {
             if (targetArrow != null)
             {
+                targetArrow.gameObject.SetActive(false);
+                return;
+            }
+
+            var existingArrow = transform.Find("Target Arrow");
+            if (existingArrow != null && existingArrow.TryGetComponent<Text>(out var existingText))
+            {
+                targetArrow = existingText;
+                targetArrow.gameObject.SetActive(false);
                 return;
             }
 
@@ -235,6 +249,7 @@ namespace Team3Project.UI
             var outline = arrowObject.GetComponent<Outline>();
             outline.effectColor = new Color(1f, 0.9f, 0.45f, 1f);
             outline.effectDistance = new Vector2(2f, -2f);
+            targetArrow.gameObject.SetActive(false);
         }
 
         private void EnsureFormIcon()

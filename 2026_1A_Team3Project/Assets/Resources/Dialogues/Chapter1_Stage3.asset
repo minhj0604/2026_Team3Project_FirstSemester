@@ -14,5 +14,150 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterName: "\uB9C8\uCE74\uB871"
   characterImage: {fileID: 21300000, guid: eb879457fcc3a344b907bbfca84a4b72, type: 3}
-  dialogueLines:
-  - "\uD14D\uC2A4\uD2B8 \uD14D\uC2A4\uD2B8 \uD14D\uC2A4\uD2B8"
+  useDefaultBackground: 1
+  defaultBackgroundImage: {fileID: 0}
+  defaultBackgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  entries:
+  - text: "\uB9C8\uCE68\uB0B4 \uB9C8\uCE74\uB871\uC740..."
+    characterName: 
+    characterImage: {fileID: 0}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uD654\uB824\uD55C \uC870\uBA85 \uD55C\uAC00\uC6B4\uB370 \uC120 \uB450\uCAC0\uCFE0\uB97C
+      \uB530\uB77C\uC7A1\uC558\uB2E4."
+    characterName: 
+    characterImage: {fileID: 0}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC640, \uC9C4\uC9DC \uC5EC\uAE30\uAE4C\uC9C0 \uC654\uB124?"
+    characterName: "\uB450\uCAC0\uCFE0"
+    characterImage: {fileID: 21300000, guid: 52fd380f94db54d45a90b857eeb2570f, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uD560\uBA38\uB2C8\uB2D8 \uC9D1\uB150 \uC644\uC804 \uB300\uBC15."
+    characterName: "\uB450\uCAC0\uCFE0"
+    characterImage: {fileID: 21300000, guid: 8ba5062473f75fd4ba6f6629a2fb65f0, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uCF58\uD150\uCE20\uAC01 \uC81C\uB300\uB85C\uB2E4."
+    characterName: "\uB450\uCAC0\uCFE0"
+    characterImage: {fileID: 21300000, guid: 52fd380f94db54d45a90b857eeb2570f, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uD765!"
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: eb879457fcc3a344b907bbfca84a4b72, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uB9D0\uC740 \uAC00\uBCCD\uACE0 \uD3EC\uC7A5\uC740 \uBC88\uCA4D\uBC88\uCA4D\uD55C\uB370..."
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: eb879457fcc3a344b907bbfca84a4b72, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC18D\uC740 \uD145 \uBE48 \uACFC\uC790\uBD09\uC9C0 \uAC19\uAD6C\uB098."
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 79b76a8edfbd76148b5edef57f474f17, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uB531 \uC694\uC998 \uB9DB\uC774\uB2E4!"
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 23c865355679f424d93d64ffdb23ee04, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "...\uBB50\uB798."
+    characterName: "\uB450\uCAC0\uCFE0"
+    characterImage: {fileID: 21300000, guid: c0425f50fdf2b1044ab1d468519bd79e, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uB09C \uC9C0\uAE08 \uC81C\uC77C \uBC18\uC9DD\uC774\uB294 \uB514\uC800\uD2B8\uC57C."
+    characterName: "\uB450\uCAC0\uCFE0"
+    characterImage: {fileID: 21300000, guid: 8ba5062473f75fd4ba6f6629a2fb65f0, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uB2E4\uB4E4 \uB0A0 \uBCF4\uACE0, \uB2E4\uB4E4 \uB0A0 \uB530\uB77C \uD55C\uB2E4\uACE0."
+    characterName: "\uB450\uCAC0\uCFE0"
+    characterImage: {fileID: 21300000, guid: 8ba5062473f75fd4ba6f6629a2fb65f0, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uBC18\uC9DD\uC784\uB9CC\uC73C\uB85C \uC624\uB798 \uB0A8\uC744 \uC218
+      \uC788\uC5C8\uB2E4\uBA74..."
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: eb879457fcc3a344b907bbfca84a4b72, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC124\uD0D5\uAC00\uB8E8\uAC00 \uC655\uC88C\uC5D0 \uC549\uC558\uC744 \uAC83\uC774\uB2E4."
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 23c865355679f424d93d64ffdb23ee04, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC5E3\uD5F4."
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: eb879457fcc3a344b907bbfca84a4b72, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uBA85\uC5B8\uC774\uB2C8 \uC801\uC5B4\uB450\uAC70\uB77C!"
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 79b76a8edfbd76148b5edef57f474f17, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uADF8\uB7FC \uC99D\uBA85\uD574\uBD10."
+    characterName: "\uB450\uCAC0\uCFE0"
+    characterImage: {fileID: 21300000, guid: d0d42416a3040a74d92e1df0901ff45d, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uD560\uBA38\uB2C8\uAC00 \uB9D0\uD558\uB294 \uADFC\uBCF8\uC774\uB77C\uB294
+      \uAC8C..."
+    characterName: "\uB450\uCAC0\uCFE0"
+    characterImage: {fileID: 21300000, guid: d0d42416a3040a74d92e1df0901ff45d, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uB0B4 \uC720\uD589\uBCF4\uB2E4 \uC624\uB798 \uBC84\uD2F8 \uC218 \uC788\uB294\uC9C0!"
+    characterName: "\uB450\uCAC0\uCFE0"
+    characterImage: {fileID: 21300000, guid: d0d42416a3040a74d92e1df0901ff45d, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC88B\uB2E4!"
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 23c865355679f424d93d64ffdb23ee04, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC544\uC8FC \uBC84\uB987\uC5C6\uACE0 \uC2DC\uB044\uB7FD\uACE0 \uBC88\uCA4D\uAC70\uB9AC\uB294
+      \uACB0\uD22C \uC2E0\uCCAD\uC774\uC9C0\uB9CC..."
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: eb879457fcc3a344b907bbfca84a4b72, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uBC1B\uC544\uC8FC\uB9C8."
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 23c865355679f424d93d64ffdb23ee04, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uB300\uC2E0 \uC6B8\uC5B4\uB3C4 \uBAA8\uB978\uB2E4!"
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 23c865355679f424d93d64ffdb23ee04, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  dialogueLines: []

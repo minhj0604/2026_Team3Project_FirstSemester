@@ -16,6 +16,7 @@ namespace Team3Project.Dialogue
         [Header("UI Elements")]
         [SerializeField] private GameObject dialogueRoot;
         [SerializeField] private GameObject dialoguePanel;
+        [SerializeField] private Image backgroundImage;
         [SerializeField] private Image characterImage;
         [SerializeField] private Text characterNameText;
         [SerializeField] private Text dialogueText;
@@ -94,6 +95,12 @@ namespace Team3Project.Dialogue
                 return;
             }
 
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.S))
+            {
+                SkipDialogue();
+                return;
+            }
+
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0) || HasTouchBegan())
             {
                 HandleNextInput();
@@ -113,7 +120,7 @@ namespace Team3Project.Dialogue
         public void StartDialogue(DialogueDataSO dialogue, Action completeCallback = null)
         {
             EnsureUi();
-            if (dialogue == null || dialogue.dialogueLines == null || dialogue.dialogueLines.Count == 0)
+            if (dialogue == null || dialogue.LineCount == 0)
             {
                 completeCallback?.Invoke();
                 return;
@@ -125,14 +132,8 @@ namespace Team3Project.Dialogue
             onComplete = completeCallback;
 
             dialogueRoot.SetActive(true);
-            characterNameText.text = dialogue.characterName;
-
-            if (characterImage != null)
-            {
-                characterImage.sprite = dialogue.characterImage != null ? dialogue.characterImage : defaultCharacterImage;
-                characterImage.gameObject.SetActive(characterImage.sprite != null);
-                characterImage.preserveAspect = true;
-            }
+            dialoguePanel.SetActive(true);
+            ApplyDefaultBackground();
 
             ShowCurrentLine();
         }
@@ -164,7 +165,7 @@ namespace Team3Project.Dialogue
 
         private void ShowCurrentLine()
         {
-            if (currentDialogue == null || currentLineIndex >= currentDialogue.dialogueLines.Count)
+            if (currentDialogue == null || currentLineIndex >= currentDialogue.LineCount)
             {
                 EndDialogue();
                 return;
@@ -175,13 +176,14 @@ namespace Team3Project.Dialogue
                 StopCoroutine(typingCoroutine);
             }
 
-            typingCoroutine = StartCoroutine(TypeText(currentDialogue.dialogueLines[currentLineIndex]));
+            ApplyCurrentLinePresentation();
+            typingCoroutine = StartCoroutine(TypeText(GetCurrentLineText()));
         }
 
         private void ShowNextLine()
         {
             currentLineIndex++;
-            if (currentDialogue == null || currentLineIndex >= currentDialogue.dialogueLines.Count)
+            if (currentDialogue == null || currentLineIndex >= currentDialogue.LineCount)
             {
                 EndDialogue();
                 return;
@@ -213,10 +215,79 @@ namespace Team3Project.Dialogue
             }
 
             isTyping = false;
-            if (currentDialogue != null && currentLineIndex < currentDialogue.dialogueLines.Count)
+            if (currentDialogue != null && currentLineIndex < currentDialogue.LineCount)
             {
-                dialogueText.text = currentDialogue.dialogueLines[currentLineIndex];
+                dialogueText.text = GetCurrentLineText();
             }
+        }
+
+        private string GetCurrentLineText()
+        {
+            return currentDialogue?.GetLine(currentLineIndex)?.text ?? string.Empty;
+        }
+
+        private void ApplyCurrentLinePresentation()
+        {
+            if (currentDialogue == null)
+            {
+                return;
+            }
+
+            var line = currentDialogue.GetLine(currentLineIndex);
+            if (line == null)
+            {
+                return;
+            }
+
+            if (characterNameText != null)
+            {
+                characterNameText.text = currentDialogue.UsesEntries
+                    ? line.characterName
+                    : string.IsNullOrWhiteSpace(line.characterName) ? currentDialogue.characterName : line.characterName;
+            }
+
+            if (characterImage != null)
+            {
+                var sprite = line.characterImage != null ? line.characterImage : null;
+                if (sprite == null && !currentDialogue.UsesEntries)
+                {
+                    sprite = currentDialogue.characterImage != null ? currentDialogue.characterImage : defaultCharacterImage;
+                }
+
+                characterImage.sprite = sprite;
+                characterImage.gameObject.SetActive(sprite != null);
+                characterImage.preserveAspect = true;
+            }
+
+            if (line.changeBackground)
+            {
+                ApplyBackground(line.backgroundImage, line.backgroundColor);
+            }
+        }
+
+        private void ApplyDefaultBackground()
+        {
+            if (currentDialogue == null)
+            {
+                return;
+            }
+
+            if (currentDialogue.useDefaultBackground)
+            {
+                ApplyBackground(currentDialogue.defaultBackgroundImage, currentDialogue.defaultBackgroundColor);
+            }
+        }
+
+        private void ApplyBackground(Sprite sprite, Color color)
+        {
+            if (backgroundImage == null)
+            {
+                return;
+            }
+
+            backgroundImage.sprite = sprite;
+            backgroundImage.color = sprite == null ? color : Color.white;
+            backgroundImage.preserveAspect = false;
         }
 
         private void EndDialogue()
@@ -230,6 +301,7 @@ namespace Team3Project.Dialogue
             isDialogueActive = false;
             isTyping = false;
             currentLineIndex = 0;
+            dialoguePanel.SetActive(false);
             dialogueRoot.SetActive(false);
 
             var callback = onComplete;
@@ -259,16 +331,16 @@ namespace Team3Project.Dialogue
                 scaler.matchWidthOrHeight = 0.5f;
             }
 
-            if (TryLoadPrefabUi(canvasObject.transform))
+            if (TryBindSceneUi())
             {
-                usesSceneUi = false;
+                usesSceneUi = true;
                 dialogueRoot.SetActive(false);
                 return;
             }
 
-            if (TryBindSceneUi())
+            if (TryLoadPrefabUi(canvasObject.transform))
             {
-                usesSceneUi = true;
+                usesSceneUi = false;
                 dialogueRoot.SetActive(false);
                 return;
             }
@@ -282,6 +354,7 @@ namespace Team3Project.Dialogue
             rootRect.offsetMin = Vector2.zero;
             rootRect.offsetMax = Vector2.zero;
             var rootImage = dialogueRoot.GetComponent<Image>();
+            backgroundImage = rootImage;
             rootImage.color = new Color(0f, 0f, 0f, 0.35f);
             rootImage.raycastTarget = true;
 
@@ -320,6 +393,7 @@ namespace Team3Project.Dialogue
         {
             return dialogueRoot != null
                 && dialoguePanel != null
+                && backgroundImage != null
                 && characterNameText != null
                 && dialogueText != null;
         }
@@ -352,6 +426,15 @@ namespace Team3Project.Dialogue
             }
 
             dialogueRoot = root;
+            backgroundImage = backgroundImage != null && backgroundImage.transform.IsChildOf(root.transform)
+                ? backgroundImage
+                : root.GetComponent<Image>();
+            if (backgroundImage == null)
+            {
+                backgroundImage = root.AddComponent<Image>();
+                backgroundImage.raycastTarget = true;
+            }
+
             dialoguePanel = dialoguePanel != null ? dialoguePanel : FindSceneObject("Dialogue Panel");
             if (dialoguePanel == null || !dialoguePanel.transform.IsChildOf(root.transform))
             {
@@ -385,6 +468,7 @@ namespace Team3Project.Dialogue
         {
             dialogueRoot = null;
             dialoguePanel = null;
+            backgroundImage = null;
             characterImage = null;
             characterNameText = null;
             dialogueText = null;

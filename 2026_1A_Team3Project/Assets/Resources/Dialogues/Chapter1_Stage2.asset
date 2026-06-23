@@ -14,5 +14,90 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterName: "\uB9C8\uCE74\uB871"
   characterImage: {fileID: 21300000, guid: eb879457fcc3a344b907bbfca84a4b72, type: 3}
-  dialogueLines:
-  - "\uD14D\uC2A4\uD2B8 \uD14D\uC2A4\uD2B8 \uD14D\uC2A4\uD2B8"
+  useDefaultBackground: 1
+  defaultBackgroundImage: {fileID: 0}
+  defaultBackgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  entries:
+  - text: "\uC774\uBC88\uC5D0\uB294 \uB538\uAE30 \uD0D5\uD6C4\uB8E8 \uACBD\uD638\uC6D0\uACFC
+      \uAC10\uADE4 \uD0D5\uD6C4\uB8E8 \uACBD\uD638\uC6D0\uC774..."
+    characterName: 
+    characterImage: {fileID: 0}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uAE38\uBAA9\uC744 \uC9C0\uD0A4\uACE0 \uC788\uC5C8\uB2E4."
+    characterName: 
+    characterImage: {fileID: 0}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC5EC\uAE30\uBD80\uD130\uB294 \uB450\uCAC0\uCFE0 \uB2D8 \uCD2C\uC601
+      \uAD6C\uC5ED\uC785\uB2C8\uB2E4."
+    characterName: "\uB538\uAE30 \uD0D5\uD6C4\uB8E8 \uACBD\uD638\uC6D0"
+    characterImage: {fileID: 0}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uAD00\uACC4\uC790 \uC678 \uCD9C\uC785 \uAE08\uC9C0."
+    characterName: "\uB538\uAE30 \uD0D5\uD6C4\uB8E8 \uACBD\uD638\uC6D0"
+    characterImage: {fileID: 0}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uBC29\uD328 \uC900\uBE44 \uC644\uB8CC."
+    characterName: "\uAC10\uADE4 \uD0D5\uD6C4\uB8E8 \uACBD\uD638\uC6D0"
+    characterImage: {fileID: 0}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC811\uADFC \uC2DC \uB048\uC801\uD558\uAC8C \uC81C\uC555\uD569\uB2C8\uB2E4."
+    characterName: "\uAC10\uADE4 \uD0D5\uD6C4\uB8E8 \uACBD\uD638\uC6D0"
+    characterImage: {fileID: 0}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uCD2C\uC601 \uAD6C\uC5ED?"
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: eb879457fcc3a344b907bbfca84a4b72, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC6C3\uAE30\uC9C0 \uB9D0\uAC70\uB77C!"
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 23c865355679f424d93d64ffdb23ee04, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC774 \uACE8\uBAA9\uC740 \uC608\uB85C\uBD80\uD130 \uBCF8 \uB9C8\uB140\uC758
+      \uC0B0\uCC45 \uAD6C\uC5ED\uC774\uC5C8\uB2E4."
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 23c865355679f424d93d64ffdb23ee04, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uBA85\uB839 \uBD88\uC751 \uD655\uC778."
+    characterName: "\uB538\uAE30 \uD0D5\uD6C4\uB8E8 \uACBD\uD638\uC6D0"
+    characterImage: {fileID: 0}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC81C\uC555 \uC808\uCC28\uB97C \uC2DC\uC791\uD569\uB2C8\uB2E4."
+    characterName: "\uB538\uAE30 \uD0D5\uD6C4\uB8E8 \uACBD\uD638\uC6D0"
+    characterImage: {fileID: 0}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uC694\uC998 \uC80A\uC740 \uAC83\uB4E4\uC740 \uC65C \uC8C4\uB2E4 \uC774
+      \uBAA8\uC591\uC774\uB354\uB0D0!"
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 0670a9cd0bb4cbd4d81d887410af3768, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  - text: "\uBE44\uCF1C\uB77C, \uC124\uD0D5 \uAF2C\uCE58\uB4E4!"
+    characterName: "\uB9C8\uCE74\uB871 \uB9C8\uB140"
+    characterImage: {fileID: 21300000, guid: 0670a9cd0bb4cbd4d81d887410af3768, type: 3}
+    changeBackground: 0
+    backgroundImage: {fileID: 0}
+    backgroundColor: {r: 0, g: 0, b: 0, a: 0}
+  dialogueLines: []

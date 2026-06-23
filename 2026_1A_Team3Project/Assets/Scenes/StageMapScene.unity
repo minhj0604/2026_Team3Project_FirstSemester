@@ -349,7 +349,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "보스\n잠김"
+  m_Text: "\uBCF4\uC2A4\n\uC7A0\uAE40"
 --- !u!222 &405648442
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -633,14 +633,14 @@ MonoBehaviour:
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 48
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 1장 스테이지
+  m_Text: "1\uC7A5 \uC2A4\uD14C\uC774\uC9C0"
 --- !u!222 &956701814
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -966,7 +966,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "1스테이지\n진행"
+  m_Text: "1\uC2A4\uD14C\uC774\uC9C0\n\uC9C4\uD589"
 --- !u!222 &1506312762
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1045,7 +1045,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 뒤로
+  m_Text: "\uB4A4\uB85C"
 --- !u!222 &1507142018
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1124,7 +1124,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "2스테이지\n잠김"
+  m_Text: "2\uC2A4\uD14C\uC774\uC9C0\n\uC7A0\uAE40"
 --- !u!222 &1538327814
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1464,7 +1464,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 08fdfa4221c8e014d83a52785a6daffc, type: 3}
+  m_Sprite: {fileID: 21300000, guid: fad00796a4b5d3840a66f3833f0a359f, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

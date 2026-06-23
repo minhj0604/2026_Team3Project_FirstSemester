@@ -682,10 +682,10 @@ namespace Team3Project.UI
             {
                 cardText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
             }
-            cardText.fontSize = 12;
+            cardText.fontSize = 22;
             cardText.resizeTextForBestFit = true;
-            cardText.resizeTextMinSize = 8;
-            cardText.resizeTextMaxSize = 14;
+            cardText.resizeTextMinSize = 16;
+            cardText.resizeTextMaxSize = 24;
             cardText.raycastTarget = false;
         }
 
@@ -711,8 +711,8 @@ namespace Team3Project.UI
 
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = new Vector2(4f, 4f);
-            textRect.offsetMax = new Vector2(-4f, -34f);
+            textRect.offsetMin = new Vector2(3f, 6f);
+            textRect.offsetMax = new Vector2(-3f, -30f);
             cardText.alignment = TextAnchor.MiddleCenter;
         }
 

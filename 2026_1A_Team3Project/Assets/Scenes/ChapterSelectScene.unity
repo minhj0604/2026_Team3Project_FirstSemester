@@ -992,6 +992,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Team3Project.Dialogue.DialogueManager
   dialogueRoot: {fileID: 0}
   dialoguePanel: {fileID: 0}
+  backgroundImage: {fileID: 0}
   characterImage: {fileID: 0}
   characterNameText: {fileID: 0}
   dialogueText: {fileID: 0}
@@ -1560,7 +1561,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\uC9C4\uC785"
+  m_Text: 
 --- !u!222 &1506312762
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -2382,7 +2383,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
   m_AnchoredPosition: {x: 320, y: -302}
-  m_SizeDelta: {x: 500, y: 230}
+  m_SizeDelta: {x: 500, y: 433.1}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &2117000013
 MonoBehaviour:
@@ -2409,15 +2410,22 @@ MonoBehaviour:
     m_FontSize: 30
     m_FontStyle: 0
     m_BestFit: 0
-    m_MinSize: 10
+    m_MinSize: 1
     m_MaxSize: 40
-    m_Alignment: 0
+    m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1.15
-  m_Text: "\uD14D\uC2A4\uD2B8 \uD14D\uC2A4\uD2B8 \uD14D\uC2A4\uD2B8"
+  m_Text: "\uB514\uC800\uD2B8 \uB9C8\uB140 \uC655\uAD6D, \uC624\uB79C \uC5ED\uC0AC\uC640
+    \n\uC804\uD1B5\uC744 \uC790\uB791\uD558\uB294 \u2018\uCFE0\uD0A4 \uAC00\uBB38\u2019\uC758
+    \uBD84\uD30C \n\uB9C8\uCE74\uB871 \uAC00\uBB38\uC758 \uB9C8\uCE74\uB871 \uB9C8\uB140.
+    \n\uC624\uB79C \uCE69\uAC70 \uB05D\uC5D0 \uC138\uC0C1 \uBC16\uC73C\uB85C \uB098\uC640
+    \uBAA9\uACA9\uD55C \uAC83\uC740...\u2018\uB450\uBC14\uC774 \uCAC0\uB4DD \uCFE0\uD0A4\u2019\uB77C\uB294
+    \uC815\uCCB4\uBD88\uBA85\uC758 \uB514\uC800\uD2B8 \uB9C8\uB140\uC640 \uADF8\uB140\uB97C
+    \uD544\uB450\uB85C \uD55C \uB09C\uC0DD \uCC98\uC74C\uBCF4\uB294 \uAC83\uB4E4\uC774\r\n\uC655\uAD6D\uC758
+    \uD2B8\uB80C\uB4DC\uB97C \uC7A5\uC545\uD55C \n\uCDA9\uACA9\uC801\uC778 \uAD11\uACBD\uC774\uC5C8\uB2E4.\r\n\r\n\r\n"
 --- !u!222 &2117000014
 CanvasRenderer:
   m_ObjectHideFlags: 0

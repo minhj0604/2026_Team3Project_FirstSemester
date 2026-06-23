@@ -238,7 +238,7 @@ namespace Team3Project.UI
 
         private static Sprite LoadUiSprite(string fileName)
         {
-            return LoadAssetSprite("GameOver Menu", fileName);
+            return RuntimeSpriteLoader.LoadFromAssetPath("Resource", "GameOver Menu", fileName);
         }
 
         private static Sprite LoadAssetSprite(params string[] relativePathParts)
